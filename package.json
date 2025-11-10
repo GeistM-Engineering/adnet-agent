@@ -1,0 +1,16 @@
+{
+  "name": "@geistm/adnet-agent",
+  "version": "0.0.5",
+  "description": "Adnet agent that connects publishers to the epistery of ads",
+  "license": "UNLICENSED",
+  "author": "",
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "epistery": "*"
+  }
+}
