@@ -16,9 +16,7 @@ const __dirname = path.dirname(__filename);
  */
 export default class AdnetAgent {
   constructor(options = {}) {
-    this.factoryUrl = options.factoryUrl || process.env.ADNET_FACTORY_URL || 'https://adnet.blackfire.pro';
     this.threshold = options.threshold || 5; // Number of events before posting to contract
-    this.domain = options.domain; // Publisher domain
 
     // Hash chain for transaction batching
     this.eventChain = [];
@@ -29,26 +27,30 @@ export default class AdnetAgent {
     this.cacheExpiry = 0;
     this.cacheDuration = 5 * 60 * 1000; // 5 minutes
 
-    // Initialize Epistery
+    // Initialize Epistery and load config
     this.initEpistery();
   }
 
   async initEpistery() {
     try {
+      // Load config
       this.config = new Config();
-      if (this.domain) {
-        this.config.setPath(this.domain);
-      }
       this.config.load();
 
-      this.epistery = await Epistery.connect({
-        domain: this.config.data.domain || this.domain
-      });
+      // Get factory URL from config
+      this.factoryUrl = this.config.data.adnet?.factoryUrl || 'http://localhost:4080';
+
+      // Connect Epistery - it will auto-configure from config files
+      this.epistery = await Epistery.connect();
 
       this.publisherAddress = this.config.data.wallet?.address;
+      this.domain = this.config.data.domain;
+
       console.log('Adnet Agent initialized');
+      console.log('Publisher domain:', this.domain);
       console.log('Publisher address:', this.publisherAddress);
-      console.log('Factory:', this.factoryUrl);
+      console.log('Factory URL:', this.factoryUrl);
+      console.log('Threshold:', this.threshold);
     } catch (error) {
       console.error('Failed to initialize Epistery for agent:', error);
     }

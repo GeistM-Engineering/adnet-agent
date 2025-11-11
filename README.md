@@ -34,13 +34,33 @@ When the threshold is reached (default: 5 for testing, 1000+ for production), th
 import AdnetAgent from '@geistm/adnet-agent';
 
 const agent = new AdnetAgent({
-  domain: 'publisher.com',        // Publisher domain
-  threshold: 5,                   // Events before posting to contract
-  factoryUrl: 'https://adnet.blackfire.pro'
+  threshold: 5  // Events before posting to contract (optional, default: 5)
 });
 
 await agent.attach(app); // Attach to Express app
 ```
+
+### Configuration
+
+The agent uses Epistery's Config system. Configuration is loaded from `~/.epistery/<domain>/config.ini`.
+
+**Required config.ini settings:**
+```ini
+domain=demo.localhost
+
+[wallet]
+address=0x...
+privateKey=0x...
+
+[adnet]
+factoryUrl=http://localhost:4080  # or https://adnet.blackfire.pro for production
+```
+
+The agent will automatically:
+- Load its configuration from Config
+- Connect to Epistery using the configured wallet
+- Use the factory URL specified in config
+- Identify itself using the domain and wallet address
 
 ### API Endpoints
 
