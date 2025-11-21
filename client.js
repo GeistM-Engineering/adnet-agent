@@ -30,7 +30,7 @@
     async init() {
       console.log('[Adnet] Initializing agent client');
 
-      await this.connectEpistery();
+      this.connectEpistery();
 
       // Fetch available campaigns
       await this.fetchCampaigns();
