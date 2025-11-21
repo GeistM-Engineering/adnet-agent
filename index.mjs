@@ -38,7 +38,7 @@ export default class AdnetAgent {
       this.config.load();
 
       // Get factory URL from config
-      this.factoryUrl = this.config.data.adnet?.factoryUrl || 'http://localhost:4080';
+      this.factoryUrl = this.config.data.adnet?.factoryUrl;
 
       // Connect Epistery - it will auto-configure from config files
       this.epistery = await Epistery.connect();
@@ -122,7 +122,7 @@ export default class AdnetAgent {
     const results = [];
     for (const [campaignId, events] of Object.entries(eventsByCampaign)) {
       try {
-        const response = await this.epistery.fetch(`${this.factoryUrl}/api/campaign/${campaignId}/record`, {
+        const response = await fetch(`${this.factoryUrl}/api/campaign/${campaignId}/record`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -243,7 +243,7 @@ export default class AdnetAgent {
     });
 
     // Record event (view or click)
-    router.post('/record', express.json(), (req, res) => {
+    router.post('/record', (req, res) => {
       try {
         const { campaignId, promotionId, type, userAddress } = req.body;
 

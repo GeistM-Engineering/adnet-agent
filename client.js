@@ -5,26 +5,59 @@
  * fetches campaigns, renders ads, and tracks events.
  */
 
-(function() {
+(async function() {
   'use strict';
 
   const AGENT_BASE = '/.well-known/epistery/agent/adnet';
+
+  let Witness;
+  try {
+    const module = await import('/.well-known/epistery/lib/witness.js');
+    Witness = module.default;
+  } catch (error) {
+    console.warn('[Adnet] Failed to load Epistery Witness:', error);
+  }
 
   class AdnetClient {
     constructor() {
       this.campaigns = [];
       this.renderedAds = new Map(); // Track which ads have been rendered
+      this.userAddress = null;
+      this.witness = null;
       this.init();
     }
 
     async init() {
       console.log('[Adnet] Initializing agent client');
 
+      await this.connectEpistery();
+
       // Fetch available campaigns
       await this.fetchCampaigns();
 
       // Find and populate ad placeholders
       this.populateAdSlots();
+    }
+
+    async connectEpistery() {
+      if (!Witness) {
+        console.log('[Adnet] Epistery not available, user tracking disabled');
+        return;
+      }
+
+      try {
+        this.witness = await Witness.connect();
+        const status = this.witness.getStatus();
+
+        if (status.client && status.client.address) {
+          this.userAddress = status.client.address;
+          console.log('[Adnet] User wallet connected:', this.userAddress);
+        } else {
+          console.log('[Adnet] No user wallet found');
+        }
+      } catch (error) {
+        console.warn('[Adnet] Failed to connect to Epistery:', error);
+      }
     }
 
     async fetchCampaigns() {
@@ -205,7 +238,7 @@
             campaignId,
             promotionId,
             type,
-            userAddress: null // TODO: Get from Epistery if user is identified
+            userAddress: this.userAddress // User wallet address from Epistery
           })
         });
 
