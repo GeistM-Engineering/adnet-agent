@@ -9,7 +9,7 @@
   'use strict';
 
   // Determine the base URL of this script
-  const scriptUrl = new URL(document.currentScript?.src || import.meta.url);
+  const scriptUrl = new URL(document.currentScript.src);
   const EPISTERY_BASE = `${scriptUrl.protocol}//${scriptUrl.host}`;
   const AGENT_BASE = `${EPISTERY_BASE}/agent/geistm/adnet-agent`;
 
