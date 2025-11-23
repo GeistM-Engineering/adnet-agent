@@ -204,15 +204,13 @@ export default class AdnetAgent {
    * Attach agent routes to Express app
    */
   attach(app) {
-    const router = express.Router();
-
     // Serve client script
-    router.get('/client.js', (req, res) => {
+    app.get('/client.js', (req, res) => {
       res.sendFile(path.join(__dirname, 'client.js'));
     });
 
     // Get available campaigns
-    router.get('/campaigns', async (req, res) => {
+    app.get('/campaigns', async (req, res) => {
       try {
         const campaigns = await this.fetchCampaigns();
         res.json({
@@ -229,7 +227,7 @@ export default class AdnetAgent {
     });
 
     // Get specific campaign with promotions
-    router.get('/campaigns/:id', async (req, res) => {
+    app.get('/campaigns/:id', async (req, res) => {
       try {
         const campaign = await this.getCampaign(req.params.id);
         if (!campaign) {
@@ -252,7 +250,7 @@ export default class AdnetAgent {
     });
 
     // Record event (view or click)
-    router.post('/record', (req, res) => {
+    app.post('/record', (req, res) => {
       try {
         const { campaignId, promotionId, type, userAddress } = req.body;
 
@@ -299,7 +297,7 @@ export default class AdnetAgent {
     });
 
     // Get chain status
-    router.get('/status', (req, res) => {
+    app.get('/status', (req, res) => {
       res.json({
         status: 'success',
         chain: {
@@ -316,7 +314,7 @@ export default class AdnetAgent {
     });
 
     // Manual flush (for testing)
-    router.post('/flush', async (req, res) => {
+    app.post('/flush', async (req, res) => {
       try {
         const results = await this.flushEvents();
         res.json({
@@ -330,13 +328,6 @@ export default class AdnetAgent {
         });
       }
     });
-
-    // Note: Routes are mounted by AgentManager in epistery-host
-    // In standalone mode, mount manually if needed
-    if (app.mountpath === undefined || app.mountpath === '/') {
-      app.use('/.well-known/epistery/agent/adnet', router);
-      console.log('Adnet Agent routes attached at /.well-known/epistery/agent/adnet (standalone mode)');
-    }
 
     return this;
   }
