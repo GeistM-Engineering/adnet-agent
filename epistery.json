@@ -1,0 +1,16 @@
+{
+  "name": "@geistm/adnet-agent",
+  "version": "0.0.5",
+  "type": "agent",
+  "description": "Adnet agent that connects publishers to the epistery of ads",
+  "author": "GeistM",
+  "main": "index.mjs",
+  "agentName": "adnet",
+  "permissions": [
+    "epistery:wallet:read",
+    "epistery:wallet:sign"
+  ],
+  "config": {
+    "threshold": 5
+  }
+}
