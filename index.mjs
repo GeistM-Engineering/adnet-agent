@@ -35,22 +35,29 @@ export default class AdnetAgent {
     try {
       const domain = process.argv[2];
 
-      this.config = new Config();
-      this.config.setPath(domain); // ~/.epistery/[domain]/config.ini
-      this.config.load();
-
+      // Load root config for factory URL
       const rootConfig = new Config();
       rootConfig.load(); // ~/.epistery/config.ini
-
       this.factoryUrl = rootConfig.data.adnet?.factoryUrl;
-      this.publisherAddress = this.config.data.wallet?.address;
-      this.domain = domain;
 
-      this.epistery = await Epistery.connect();
-      
-      console.log('Adnet Agent initialized');
-      console.log('Publisher domain:', this.domain);
-      console.log('Publisher address:', this.publisherAddress);
+      // If domain provided (standalone mode), load domain-specific config
+      if (domain) {
+        this.config = new Config();
+        this.config.setPath(domain); // ~/.epistery/[domain]/config.ini
+        this.config.load();
+
+        this.publisherAddress = this.config.data.wallet?.address;
+        this.domain = domain;
+        this.epistery = await Epistery.connect();
+
+        console.log('Adnet Agent initialized (standalone mode)');
+        console.log('Publisher domain:', this.domain);
+        console.log('Publisher address:', this.publisherAddress);
+      } else {
+        // Hosted mode - domain/wallet determined per-request
+        console.log('Adnet Agent initialized (hosted mode)');
+      }
+
       console.log('Factory URL:', this.factoryUrl);
       console.log('Threshold:', this.threshold);
     } catch (error) {
