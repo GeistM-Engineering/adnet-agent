@@ -49,7 +49,7 @@
       }
 
       try {
-        this.witness = await Witness.connect(EPISTERY_BASE);
+        this.witness = await Witness.connect({ rootPath: EPISTERY_BASE });
         const status = this.witness.getStatus();
 
         if (status.client && status.client.address) {
