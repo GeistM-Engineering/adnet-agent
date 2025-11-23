@@ -64,8 +64,10 @@ The agent will automatically:
 
 ### API Endpoints
 
-All endpoints are mounted at _epistery_/agent/adnet-agent. If hosted via epistery-host _epistery_ is the root path of the
-server domain. If imported, routes are mapped to /.well-known/epistey/agent/adnet-agent
+All endpoints are mounted at _epistery_/agent/geistm/adnet-agent. If hosted via epistery-host _epistery_ is the root path of the
+server domain. If imported, routes are mapped to /.well-known/epistey/agent/geistm/adnet-agent
+
+>NOTE: The agent name is it's NPM/Git name. If it includes a namespace this is added to the path with the at sign, i.e. @geistm/adnet-agent
 
 #### `GET /client.js`
 Serves the client-side JavaScript
