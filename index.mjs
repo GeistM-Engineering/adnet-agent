@@ -331,9 +331,12 @@ export default class AdnetAgent {
       }
     });
 
-    app.use('/.well-known/epistery/agent/adnet', router);
-
-    console.log('Adnet Agent routes attached at /.well-known/epistery/agent/adnet');
+    // Note: Routes are mounted by AgentManager in epistery-host
+    // In standalone mode, mount manually if needed
+    if (app.mountpath === undefined || app.mountpath === '/') {
+      app.use('/.well-known/epistery/agent/adnet', router);
+      console.log('Adnet Agent routes attached at /.well-known/epistery/agent/adnet (standalone mode)');
+    }
 
     return this;
   }
