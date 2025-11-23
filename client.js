@@ -8,11 +8,14 @@
 (async function() {
   'use strict';
 
-  const AGENT_BASE = '/.well-known/epistery/agent/adnet';
+  // Determine the base URL of this script
+  const scriptUrl = new URL(document.currentScript?.src || import.meta.url);
+  const EPISTERY_BASE = `${scriptUrl.protocol}//${scriptUrl.host}`;
+  const AGENT_BASE = `${EPISTERY_BASE}/agent/geistm/adnet-agent`;
 
   let Witness;
   try {
-    const module = await import('/.well-known/epistery/lib/witness.js');
+    const module = await import(`${EPISTERY_BASE}/lib/witness.js`);
     Witness = module.default;
   } catch (error) {
     console.warn('[Adnet] Failed to load Epistery Witness:', error);
