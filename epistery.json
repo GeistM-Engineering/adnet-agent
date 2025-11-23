@@ -10,6 +10,7 @@
     "epistery:wallet:sign"
   ],
   "config": {
-    "threshold": 5
+    "threshold": 5,
+    "factoryUrl": "https://adnet.geistm.com"
   }
 }

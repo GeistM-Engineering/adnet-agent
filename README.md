@@ -64,7 +64,8 @@ The agent will automatically:
 
 ### API Endpoints
 
-All endpoints are mounted at `/.well-known/epistery/agent/adnet`:
+All endpoints are mounted at _epistery_/agent/adnet-agent. If hosted via epistery-host _epistery_ is the root path of the
+server domain. If imported, routes are mapped to /.well-known/epistey/agent/adnet-agent
 
 #### `GET /client.js`
 Serves the client-side JavaScript
