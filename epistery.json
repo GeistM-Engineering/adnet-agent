@@ -5,7 +5,7 @@
   "description": "Adnet agent that connects publishers to the epistery of ads",
   "author": "GeistM",
   "main": "index.mjs",
-  "icon": "/agent/adnet/icon.webp",
+  "icon": "/agent/geistm/adnet-agent/icon.webp",
   "permissions": [
     "epistery:wallet:read",
     "epistery:wallet:sign"
