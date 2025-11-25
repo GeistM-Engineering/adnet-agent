@@ -204,6 +204,7 @@ export default class AdnetAgent {
    * Attach agent routes to Express app
    */
   attach(app) {
+    app.use(express.static(path.join(__dirname, 'public')));
     // Serve client script
     app.get('/client.js', (req, res) => {
       res.sendFile(path.join(__dirname, 'client.js'));
