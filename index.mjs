@@ -205,9 +205,20 @@ export default class AdnetAgent {
    */
   attach(app) {
     app.use(express.static(path.join(__dirname, 'public')));
+
     // Serve client script
     app.get('/client.js', (req, res) => {
       res.sendFile(path.join(__dirname, 'client.js'));
+    });
+
+    // Serve admin dashboard
+    app.get('/admin', (req, res) => {
+      res.sendFile(path.join(__dirname, 'client', 'admin.html'));
+    });
+
+    // Serve widget
+    app.get('/widget', (req, res) => {
+      res.sendFile(path.join(__dirname, 'client', 'widget.html'));
     });
 
     // Get available campaigns
@@ -310,7 +321,8 @@ export default class AdnetAgent {
         publisher: {
           address: this.publisherAddress,
           domain: this.domain
-        }
+        },
+        factoryUrl: this.factoryUrl
       });
     });
 

@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adnet Console</title>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&family=Roboto:wght@400;500&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+  <style>
+    :root {
+      --gcp-blue: #1a73e8;
+      --gcp-blue-hover: #1557b0;
+      --gcp-blue-light: #e8f0fe;
+      --gcp-green: #1e8e3e;
+      --gcp-green-light: #e6f4ea;
+      --gcp-yellow: #f9ab00;
+      --gcp-yellow-light: #fef7e0;
+      --gcp-red: #d93025;
+      --gcp-red-light: #fce8e6;
+      --gcp-gray-900: #202124;
+      --gcp-gray-700: #5f6368;
+      --gcp-gray-500: #80868b;
+      --gcp-gray-300: #dadce0;
+      --gcp-gray-100: #f1f3f4;
+      --gcp-gray-50: #f8f9fa;
+      --gcp-white: #ffffff;
+      --sidebar-width: 256px;
+      --header-height: 64px;
+      --shadow-1: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+      --shadow-2: 0 1px 2px 0 rgba(60,64,67,0.3), 0 2px 6px 2px rgba(60,64,67,0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--gcp-gray-50);
+      color: var(--gcp-gray-900);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--header-height);
+      background: var(--gcp-white);
+      border-bottom: 1px solid var(--gcp-gray-300);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      z-index: 100;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--gcp-gray-700);
+      font-family: 'Google Sans', sans-serif;
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .header-logo img {
+      height: 32px;
+      width: 32px;
+    }
+
+    .header-logo .product-name {
+      color: var(--gcp-gray-900);
+    }
+
+    .header-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--gcp-gray-300);
+      margin: 0 16px;
+    }
+
+    .header-title {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 18px;
+      color: var(--gcp-gray-900);
+    }
+
+    .header-spacer {
+      flex: 1;
+    }
+
+    .header-domain {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 13px;
+      color: var(--gcp-gray-700);
+      background: var(--gcp-gray-100);
+      padding: 6px 12px;
+      border-radius: 4px;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed;
+      top: var(--header-height);
+      left: 0;
+      bottom: 0;
+      width: var(--sidebar-width);
+      background: var(--gcp-white);
+      border-right: 1px solid var(--gcp-gray-300);
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .nav-section {
+      padding: 8px 0;
+    }
+
+    .nav-section-title {
+      padding: 8px 24px;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--gcp-gray-500);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 24px;
+      height: 40px;
+      color: var(--gcp-gray-700);
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .nav-item:hover {
+      background: var(--gcp-gray-100);
+    }
+
+    .nav-item.active {
+      background: var(--gcp-blue-light);
+      color: var(--gcp-blue);
+    }
+
+    .nav-item .material-icons-outlined {
+      font-size: 20px;
+    }
+
+    .nav-item.active .material-icons-outlined {
+      color: var(--gcp-blue);
+    }
+
+    /* Main Content */
+    .main {
+      margin-left: var(--sidebar-width);
+      margin-top: var(--header-height);
+      padding: 24px;
+      min-height: calc(100vh - var(--header-height));
+    }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 22px;
+      font-weight: 400;
+      color: var(--gcp-gray-900);
+    }
+
+    .page-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px;
+      height: 36px;
+      border: none;
+      border-radius: 4px;
+      font-family: 'Google Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+
+    .btn-primary {
+      background: var(--gcp-blue);
+      color: var(--gcp-white);
+    }
+
+    .btn-primary:hover {
+      background: var(--gcp-blue-hover);
+      box-shadow: var(--shadow-1);
+    }
+
+    .btn-primary:disabled {
+      background: var(--gcp-gray-300);
+      color: var(--gcp-gray-500);
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--gcp-white);
+      color: var(--gcp-blue);
+      border: 1px solid var(--gcp-gray-300);
+    }
+
+    .btn-secondary:hover {
+      background: var(--gcp-gray-50);
+      border-color: var(--gcp-blue);
+    }
+
+    .btn-icon {
+      width: 36px;
+      padding: 0;
+      justify-content: center;
+    }
+
+    .btn .material-icons-outlined {
+      font-size: 18px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--gcp-white);
+      border: 1px solid var(--gcp-gray-300);
+      border-radius: 8px;
+      margin-bottom: 24px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--gcp-gray-300);
+    }
+
+    .card-title {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--gcp-gray-900);
+    }
+
+    .card-body {
+      padding: 24px;
+    }
+
+    .card-body.no-padding {
+      padding: 0;
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--gcp-white);
+      border: 1px solid var(--gcp-gray-300);
+      border-radius: 8px;
+      padding: 20px 24px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--gcp-gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 28px;
+      font-weight: 400;
+      color: var(--gcp-gray-900);
+    }
+
+    .metric-value.success {
+      color: var(--gcp-green);
+    }
+
+    .metric-value.warning {
+      color: var(--gcp-yellow);
+    }
+
+    .metric-subtitle {
+      font-size: 12px;
+      color: var(--gcp-gray-500);
+      margin-top: 4px;
+    }
+
+    /* Properties List */
+    .properties-list {
+      display: grid;
+      gap: 0;
+    }
+
+    .property-row {
+      display: flex;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--gcp-gray-100);
+    }
+
+    .property-row:last-child {
+      border-bottom: none;
+    }
+
+    .property-label {
+      width: 200px;
+      font-size: 13px;
+      color: var(--gcp-gray-700);
+      flex-shrink: 0;
+    }
+
+    .property-value {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 13px;
+      color: var(--gcp-gray-900);
+      word-break: break-all;
+    }
+
+    .property-value a {
+      color: var(--gcp-blue);
+      text-decoration: none;
+    }
+
+    .property-value a:hover {
+      text-decoration: underline;
+    }
+
+    /* Table */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 12px 24px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--gcp-gray-700);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: var(--gcp-gray-50);
+      border-bottom: 1px solid var(--gcp-gray-300);
+    }
+
+    .data-table td {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--gcp-gray-100);
+      font-size: 14px;
+    }
+
+    .data-table tr:hover {
+      background: var(--gcp-gray-50);
+    }
+
+    .data-table .mono {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 13px;
+      color: var(--gcp-gray-700);
+    }
+
+    /* Status Chips */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .chip-success {
+      background: var(--gcp-green-light);
+      color: var(--gcp-green);
+    }
+
+    .chip-warning {
+      background: var(--gcp-yellow-light);
+      color: #995c00;
+    }
+
+    .chip-error {
+      background: var(--gcp-red-light);
+      color: var(--gcp-red);
+    }
+
+    .chip-info {
+      background: var(--gcp-blue-light);
+      color: var(--gcp-blue);
+    }
+
+    /* Progress Bar */
+    .progress-container {
+      margin: 16px 0;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    .progress-label {
+      color: var(--gcp-gray-700);
+    }
+
+    .progress-value {
+      font-family: 'Roboto Mono', monospace;
+      color: var(--gcp-gray-900);
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: var(--gcp-gray-200);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--gcp-blue);
+      transition: width 0.3s ease;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--gcp-gray-500);
+    }
+
+    .empty-state .material-icons-outlined {
+      font-size: 48px;
+      margin-bottom: 16px;
+      color: var(--gcp-gray-300);
+    }
+
+    .empty-state-title {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 16px;
+      color: var(--gcp-gray-700);
+      margin-bottom: 8px;
+    }
+
+    /* Toast Messages */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+    }
+
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 24px;
+      background: var(--gcp-gray-900);
+      color: var(--gcp-white);
+      border-radius: 4px;
+      box-shadow: var(--shadow-2);
+      margin-bottom: 8px;
+      animation: slideUp 0.2s ease;
+    }
+
+    .toast.success {
+      background: var(--gcp-green);
+    }
+
+    .toast.error {
+      background: var(--gcp-red);
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--gcp-white);
+      border-radius: 8px;
+      width: 90%;
+      max-width: 720px;
+      max-height: 85vh;
+      overflow: hidden;
+      box-shadow: var(--shadow-2);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--gcp-gray-300);
+    }
+
+    .modal-title {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      padding: 8px;
+      cursor: pointer;
+      color: var(--gcp-gray-500);
+      border-radius: 50%;
+    }
+
+    .modal-close:hover {
+      background: var(--gcp-gray-100);
+    }
+
+    .modal-body {
+      padding: 24px;
+      overflow-y: auto;
+      max-height: calc(85vh - 120px);
+    }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 24px;
+      color: var(--gcp-gray-500);
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--gcp-gray-300);
+      border-top-color: var(--gcp-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Two Column Layout */
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .two-column {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+      .main {
+        margin-left: 0;
+      }
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Event Log */
+    .event-log {
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .event-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--gcp-gray-100);
+    }
+
+    .event-item:last-child {
+      border-bottom: none;
+    }
+
+    .event-type {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .event-type.view {
+      background: var(--gcp-blue-light);
+      color: var(--gcp-blue);
+    }
+
+    .event-type.click {
+      background: var(--gcp-green-light);
+      color: var(--gcp-green);
+    }
+
+    .event-details {
+      flex: 1;
+      font-family: 'Roboto Mono', monospace;
+      font-size: 12px;
+      color: var(--gcp-gray-700);
+    }
+
+    .event-time {
+      font-size: 12px;
+      color: var(--gcp-gray-500);
+    }
+
+    /* Report Stats */
+    .report-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .report-metric {
+      text-align: center;
+      padding: 16px;
+      background: var(--gcp-gray-50);
+      border-radius: 8px;
+    }
+
+    .report-metric-value {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 24px;
+      color: var(--gcp-gray-900);
+    }
+
+    .report-metric-label {
+      font-size: 11px;
+      color: var(--gcp-gray-500);
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 600px) {
+      .report-metrics {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Info Banner */
+    .info-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 16px;
+      background: var(--gcp-blue-light);
+      border-radius: 4px;
+      margin-top: 16px;
+    }
+
+    .info-banner .material-icons-outlined {
+      color: var(--gcp-blue);
+      font-size: 20px;
+    }
+
+    .info-banner-text {
+      font-size: 13px;
+      color: var(--gcp-gray-700);
+    }
+
+    /* Data Source Badge */
+    .source-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 8px;
+    }
+
+    .source-badge.blockchain {
+      background: var(--gcp-green-light);
+      color: var(--gcp-green);
+    }
+
+    .source-badge.database {
+      background: var(--gcp-yellow-light);
+      color: #995c00;
+    }
+
+    .source-badge .material-icons-outlined {
+      font-size: 12px;
+    }
+
+    /* Content Sections */
+    .content-section {
+      display: none;
+    }
+
+    .content-section.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <a href="/" class="header-logo">
+      <span class="material-icons-outlined">ads_click</span>
+      <span class="product-name">Adnet</span>
+    </a>
+    <div class="header-divider"></div>
+    <span class="header-title">Publisher Console</span>
+    <div class="header-spacer"></div>
+    <span id="publisher-domain" class="header-domain"></span>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="nav-section">
+      <div class="nav-section-title">Overview</div>
+      <div class="nav-item active" data-section="dashboard">
+        <span class="material-icons-outlined">dashboard</span>
+        Dashboard
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">Advertising</div>
+      <div class="nav-item" data-section="campaigns">
+        <span class="material-icons-outlined">campaign</span>
+        Campaigns
+      </div>
+      <div class="nav-item" data-section="earnings">
+        <span class="material-icons-outlined">payments</span>
+        Earnings
+      </div>
+      <div class="nav-item" data-section="events">
+        <span class="material-icons-outlined">timeline</span>
+        Event Queue
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">Settings</div>
+      <div class="nav-item" data-section="config">
+        <span class="material-icons-outlined">settings</span>
+        Configuration
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Dashboard Section -->
+    <section id="section-dashboard" class="content-section active">
+      <div class="page-header">
+        <h1 class="page-title">Dashboard</h1>
+        <div class="page-actions">
+          <button id="refresh-btn" class="btn btn-secondary" onclick="loadData()">
+            <span class="material-icons-outlined">refresh</span>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Historical Earnings (from Factory) -->
+      <div class="metrics-grid" id="earnings-metrics" style="margin-bottom: 16px;">
+        <div class="metric-card">
+          <div class="metric-label">Total Earnings</div>
+          <div id="total-earnings" class="metric-value success">-</div>
+          <div class="metric-subtitle">ETH</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total Views</div>
+          <div id="historical-views" class="metric-value">-</div>
+          <div class="metric-subtitle">Recorded</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total Clicks</div>
+          <div id="historical-clicks" class="metric-value">-</div>
+          <div class="metric-subtitle">Recorded</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">CTR</div>
+          <div id="historical-ctr" class="metric-value">-</div>
+          <div class="metric-subtitle">Click-through rate</div>
+        </div>
+      </div>
+
+      <!-- Pending Events -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Active Campaigns</div>
+          <div id="campaigns-count" class="metric-value">-</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Pending Events</div>
+          <div id="pending-events" class="metric-value warning">-</div>
+          <div id="threshold-info" class="metric-subtitle">Threshold: -</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Views (Pending)</div>
+          <div id="total-views" class="metric-value">-</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Clicks (Pending)</div>
+          <div id="total-clicks" class="metric-value">-</div>
+        </div>
+      </div>
+
+    <div class="two-column">
+      <!-- Event Queue Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Event Queue</span>
+          <button id="flush-btn" class="btn btn-primary" onclick="flushEvents()" disabled>
+            <span class="material-icons-outlined">send</span>
+            Flush Events
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="progress-container">
+            <div class="progress-header">
+              <span class="progress-label">Queue progress</span>
+              <span id="chain-progress" class="progress-value">0 / 0</span>
+            </div>
+            <div class="progress-bar">
+              <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+            </div>
+          </div>
+          <div id="event-list" class="event-log">
+            <div class="empty-state">
+              <span class="material-icons-outlined">inbox</span>
+              <div class="empty-state-title">No pending events</div>
+              <div>Events will appear here as users view and click ads</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuration Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Configuration</span>
+        </div>
+        <div class="card-body">
+          <div class="properties-list">
+            <div class="property-row">
+              <span class="property-label">Publisher Address</span>
+              <span id="publisher-address" class="property-value">-</span>
+            </div>
+            <div class="property-row">
+              <span class="property-label">Factory URL</span>
+              <span id="factory-url" class="property-value">-</span>
+            </div>
+            <div class="property-row">
+              <span class="property-label">Flush Threshold</span>
+              <span id="threshold" class="property-value">-</span>
+            </div>
+            <div class="property-row">
+              <span class="property-label">Last Hash</span>
+              <span id="last-hash" class="property-value" style="font-size: 11px;">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Campaigns Summary -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Active Campaigns</span>
+        <button class="btn btn-secondary" onclick="showSection('campaigns')">
+          View All
+          <span class="material-icons-outlined">arrow_forward</span>
+        </button>
+      </div>
+      <div class="card-body no-padding">
+        <div id="campaigns-summary">
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading campaigns...
+          </div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- Campaigns Section -->
+    <section id="section-campaigns" class="content-section">
+      <div class="page-header">
+        <h1 class="page-title">Campaigns</h1>
+        <div class="page-actions">
+          <button class="btn btn-secondary" onclick="loadData()">
+            <span class="material-icons-outlined">refresh</span>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">All Campaigns</span>
+        </div>
+        <div class="card-body no-padding">
+          <div id="campaigns-list">
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading campaigns...
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Earnings Section -->
+    <section id="section-earnings" class="content-section">
+      <div class="page-header">
+        <h1 class="page-title">
+          Earnings
+          <span id="earnings-source-badge" class="source-badge" style="display: none;"></span>
+        </h1>
+        <div class="page-actions">
+          <button class="btn btn-secondary" onclick="loadPublisherReport()">
+            <span class="material-icons-outlined">refresh</span>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Earnings Summary -->
+      <div class="metrics-grid" style="margin-bottom: 24px;">
+        <div class="metric-card">
+          <div class="metric-label">Total Earnings</div>
+          <div id="earnings-total" class="metric-value success">-</div>
+          <div class="metric-subtitle">ETH</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total Impressions</div>
+          <div id="earnings-impressions" class="metric-value">-</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total Clicks</div>
+          <div id="earnings-clicks" class="metric-value">-</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Overall CTR</div>
+          <div id="earnings-ctr" class="metric-value">-</div>
+        </div>
+      </div>
+
+      <!-- Earnings by Campaign -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Earnings by Campaign</span>
+        </div>
+        <div class="card-body no-padding">
+          <div id="earnings-by-campaign">
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading earnings data...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="earnings-info-banner" class="info-banner" style="margin-top: 24px;">
+        <span class="material-icons-outlined">info</span>
+        <span class="info-banner-text">
+          Earnings are calculated from recorded events. Pending events (not yet flushed) are not included.
+          CPM = Cost per 1,000 impressions. CPC = Cost per click.
+        </span>
+      </div>
+    </section>
+
+    <!-- Events Section -->
+    <section id="section-events" class="content-section">
+      <div class="page-header">
+        <h1 class="page-title">Event Queue</h1>
+        <div class="page-actions">
+          <button id="flush-btn-events" class="btn btn-primary" onclick="flushEvents()" disabled>
+            <span class="material-icons-outlined">send</span>
+            Flush Events
+          </button>
+        </div>
+      </div>
+
+      <div class="metrics-grid" style="margin-bottom: 24px;">
+        <div class="metric-card">
+          <div class="metric-label">Pending Events</div>
+          <div id="events-pending-count" class="metric-value">-</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Flush Threshold</div>
+          <div id="events-threshold" class="metric-value">-</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Views</div>
+          <div id="events-views" class="metric-value success">-</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Clicks</div>
+          <div id="events-clicks" class="metric-value success">-</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Queue Status</span>
+        </div>
+        <div class="card-body">
+          <div class="progress-container">
+            <div class="progress-header">
+              <span class="progress-label">Queue progress</span>
+              <span id="events-progress" class="progress-value">0 / 0</span>
+            </div>
+            <div class="progress-bar">
+              <div id="events-progress-fill" class="progress-fill" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Pending Events</span>
+        </div>
+        <div class="card-body">
+          <div id="events-full-list" class="event-log" style="max-height: 500px;">
+            <div class="empty-state">
+              <span class="material-icons-outlined">inbox</span>
+              <div class="empty-state-title">No pending events</div>
+              <div>Events will appear here as users view and click ads</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Configuration Section -->
+    <section id="section-config" class="content-section">
+      <div class="page-header">
+        <h1 class="page-title">Configuration</h1>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Publisher Settings</span>
+        </div>
+        <div class="card-body">
+          <div class="properties-list">
+            <div class="property-row">
+              <span class="property-label">Publisher Domain</span>
+              <span id="config-domain" class="property-value">-</span>
+            </div>
+            <div class="property-row">
+              <span class="property-label">Publisher Address</span>
+              <span id="config-address" class="property-value">-</span>
+            </div>
+            <div class="property-row">
+              <span class="property-label">Factory URL</span>
+              <span id="config-factory" class="property-value">-</span>
+            </div>
+            <div class="property-row">
+              <span class="property-label">Flush Threshold</span>
+              <span id="config-threshold" class="property-value">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Hash Chain</span>
+        </div>
+        <div class="card-body">
+          <div class="properties-list">
+            <div class="property-row">
+              <span class="property-label">Chain Length</span>
+              <span id="config-chain-length" class="property-value">-</span>
+            </div>
+            <div class="property-row">
+              <span class="property-label">Last Hash</span>
+              <span id="config-last-hash" class="property-value" style="font-size: 11px;">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Report Modal -->
+  <div id="report-modal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <span id="report-title" class="modal-title">Campaign Report</span>
+        <button class="modal-close" onclick="closeModal()">
+          <span class="material-icons-outlined">close</span>
+        </button>
+      </div>
+      <div id="report-content" class="modal-body">
+        <div class="loading">
+          <div class="spinner"></div>
+          Loading report...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BASE_PATH = window.location.pathname.replace(/\/admin\/?$/, '');
+    let agentStatus = null;
+    let campaigns = [];
+    let factoryUrl = null;
+    let publisherAddress = null;
+    let publisherReport = null;
+
+    // Load initial data
+    async function loadData() {
+      try {
+        document.getElementById('refresh-btn').disabled = true;
+
+        // Load agent status
+        const statusResponse = await fetch(`${BASE_PATH}/status`, {
+          credentials: 'include'
+        });
+        agentStatus = await statusResponse.json();
+
+        if (agentStatus.status === 'success') {
+          const domain = agentStatus.publisher?.domain || 'Unknown';
+          const address = agentStatus.publisher?.address || '-';
+          publisherAddress = address; // Store for publisher report
+          const lastHash = agentStatus.chain?.lastHash || '-';
+          const chainLength = agentStatus.chain?.length || 0;
+          const threshold = agentStatus.chain?.threshold || 0;
+          const progress = threshold > 0 ? (chainLength / threshold) * 100 : 0;
+          factoryUrl = agentStatus.factoryUrl;
+
+          // Dashboard section
+          document.getElementById('publisher-domain').textContent = domain;
+          document.getElementById('publisher-address').textContent = address;
+          document.getElementById('last-hash').textContent = lastHash;
+          document.getElementById('pending-events').textContent = chainLength;
+          document.getElementById('threshold').textContent = threshold;
+          document.getElementById('threshold-info').textContent = `Threshold: ${threshold}`;
+          document.getElementById('chain-progress').textContent = `${chainLength} / ${threshold}`;
+          document.getElementById('progress-fill').style.width = `${progress}%`;
+          document.getElementById('factory-url').textContent = factoryUrl || 'Not configured';
+          document.getElementById('flush-btn').disabled = chainLength === 0;
+
+          // Events section
+          document.getElementById('events-pending-count').textContent = chainLength;
+          document.getElementById('events-threshold').textContent = threshold;
+          document.getElementById('events-progress').textContent = `${chainLength} / ${threshold}`;
+          document.getElementById('events-progress-fill').style.width = `${progress}%`;
+          document.getElementById('flush-btn-events').disabled = chainLength === 0;
+
+          // Configuration section
+          document.getElementById('config-domain').textContent = domain;
+          document.getElementById('config-address').textContent = address;
+          document.getElementById('config-factory').textContent = factoryUrl || 'Not configured';
+          document.getElementById('config-threshold').textContent = threshold;
+          document.getElementById('config-chain-length').textContent = chainLength;
+          document.getElementById('config-last-hash').textContent = lastHash;
+
+          // Update event lists
+          updateEventList(agentStatus.chain?.events || []);
+          updateFullEventList(agentStatus.chain?.events || []);
+        }
+
+        // Load campaigns
+        const campaignsResponse = await fetch(`${BASE_PATH}/campaigns`, {
+          credentials: 'include'
+        });
+        const campaignsData = await campaignsResponse.json();
+
+        if (campaignsData.status === 'success') {
+          campaigns = campaignsData.campaigns || [];
+          document.getElementById('campaigns-count').textContent = campaigns.length;
+          updateCampaignsSummary(campaigns);
+          updateCampaignsList(campaigns);
+        }
+
+        // Calculate totals from pending events
+        let totalViews = 0;
+        let totalClicks = 0;
+        const events = agentStatus.chain?.events || [];
+        events.forEach(e => {
+          if (e.type === 'view') totalViews++;
+          if (e.type === 'click') totalClicks++;
+        });
+        document.getElementById('total-views').textContent = totalViews;
+        document.getElementById('total-clicks').textContent = totalClicks;
+        document.getElementById('events-views').textContent = totalViews;
+        document.getElementById('events-clicks').textContent = totalClicks;
+
+        // Load publisher report from factory
+        await loadPublisherReport();
+
+      } catch (error) {
+        console.error('[admin] Failed to load data:', error);
+        showToast('Failed to load dashboard data', 'error');
+      } finally {
+        document.getElementById('refresh-btn').disabled = false;
+      }
+    }
+
+    // Load publisher report from factory
+    async function loadPublisherReport() {
+      if (!factoryUrl || !publisherAddress || publisherAddress === '-') {
+        console.log('[admin] Cannot load publisher report: missing factory URL or publisher address');
+        updateEarningsUI(null);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${factoryUrl}/api/campaign/publisher/${publisherAddress}/report`, {
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === 'success') {
+            publisherReport = data.report;
+            updateEarningsUI(publisherReport);
+          } else {
+            updateEarningsUI(null);
+          }
+        } else {
+          console.log('[admin] Publisher report not available:', response.status);
+          updateEarningsUI(null);
+        }
+      } catch (error) {
+        console.error('[admin] Failed to load publisher report:', error);
+        updateEarningsUI(null);
+      }
+    }
+
+    // Update earnings UI elements
+    function updateEarningsUI(report) {
+      const sourceBadge = document.getElementById('earnings-source-badge');
+      const infoBanner = document.getElementById('earnings-info-banner');
+
+      if (!report || !report.summary) {
+        // No data available
+        document.getElementById('total-earnings').textContent = '-';
+        document.getElementById('historical-views').textContent = '-';
+        document.getElementById('historical-clicks').textContent = '-';
+        document.getElementById('historical-ctr').textContent = '-';
+        document.getElementById('earnings-total').textContent = '-';
+        document.getElementById('earnings-impressions').textContent = '-';
+        document.getElementById('earnings-clicks').textContent = '-';
+        document.getElementById('earnings-ctr').textContent = '-';
+        sourceBadge.style.display = 'none';
+        document.getElementById('earnings-by-campaign').innerHTML = `
+          <div class="empty-state">
+            <span class="material-icons-outlined">payments</span>
+            <div class="empty-state-title">No earnings data</div>
+            <div>Earnings will appear here once events are recorded to the factory</div>
+          </div>
+        `;
+        return;
+      }
+
+      const { summary, campaigns, source, blockchainErrors } = report;
+
+      // Update source badge
+      if (source === 'blockchain') {
+        sourceBadge.className = 'source-badge blockchain';
+        sourceBadge.innerHTML = '<span class="material-icons-outlined">verified</span>On-Chain';
+        sourceBadge.style.display = 'inline-flex';
+        infoBanner.innerHTML = `
+          <span class="material-icons-outlined">verified</span>
+          <span class="info-banner-text">
+            <strong>Data verified from blockchain.</strong> Earnings are fetched directly from smart contracts (source of truth).
+            ${blockchainErrors ? `<br><em>${blockchainErrors} contract(s) could not be reached.</em>` : ''}
+          </span>
+        `;
+        infoBanner.style.background = 'var(--gcp-green-light)';
+      } else {
+        sourceBadge.className = 'source-badge database';
+        sourceBadge.innerHTML = '<span class="material-icons-outlined">storage</span>Cached';
+        sourceBadge.style.display = 'inline-flex';
+        infoBanner.innerHTML = `
+          <span class="material-icons-outlined">info</span>
+          <span class="info-banner-text">
+            <strong>Data from cache.</strong> Blockchain not available - showing cached data from database.
+            This may not reflect the latest on-chain state.
+          </span>
+        `;
+        infoBanner.style.background = 'var(--gcp-yellow-light)';
+      }
+
+      // Dashboard earnings metrics
+      document.getElementById('total-earnings').textContent = summary.totalEarningsEth || '0';
+      document.getElementById('historical-views').textContent = summary.totalViews?.toLocaleString() || '0';
+      document.getElementById('historical-clicks').textContent = summary.totalClicks?.toLocaleString() || '0';
+      document.getElementById('historical-ctr').textContent = summary.ctr || '0%';
+
+      // Earnings page metrics
+      document.getElementById('earnings-total').textContent = summary.totalEarningsEth || '0';
+      document.getElementById('earnings-impressions').textContent = summary.totalViews?.toLocaleString() || '0';
+      document.getElementById('earnings-clicks').textContent = summary.totalClicks?.toLocaleString() || '0';
+      document.getElementById('earnings-ctr').textContent = summary.ctr || '0%';
+
+      // Earnings by campaign table
+      if (!campaigns || campaigns.length === 0) {
+        document.getElementById('earnings-by-campaign').innerHTML = `
+          <div class="empty-state">
+            <span class="material-icons-outlined">payments</span>
+            <div class="empty-state-title">No campaign earnings</div>
+            <div>Earnings will appear here once events are recorded</div>
+          </div>
+        `;
+        return;
+      }
+
+      document.getElementById('earnings-by-campaign').innerHTML = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Campaign</th>
+              <th>Impressions</th>
+              <th>Clicks</th>
+              <th>CTR</th>
+              <th>CPM</th>
+              <th>CPC</th>
+              <th>Earnings</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${campaigns.map(c => `
+              <tr>
+                <td><strong>${c.brand || 'Unknown'}</strong></td>
+                <td>${c.views?.toLocaleString() || 0}</td>
+                <td>${c.clicks?.toLocaleString() || 0}</td>
+                <td>${c.ctr || '0%'}</td>
+                <td>${c.cpm || '-'} ETH</td>
+                <td>${c.cpc || '-'} ETH</td>
+                <td class="success"><strong>${formatEth(c.earnings)} ETH</strong></td>
+                <td>
+                  <span class="chip ${c.source === 'blockchain' ? 'chip-success' : 'chip-warning'}">
+                    ${c.source === 'blockchain' ? 'Chain' : 'Cache'}
+                  </span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // Format wei to ETH string
+    function formatEth(wei) {
+      if (!wei) return '0';
+      const eth = Number(wei) / 1e18;
+      if (eth === 0) return '0';
+      if (eth < 0.000001) return '< 0.000001';
+      return eth.toFixed(6);
+    }
+
+    // Update event list (dashboard - limited)
+    function updateEventList(events) {
+      const container = document.getElementById('event-list');
+      const displayEvents = events.slice(-5).reverse(); // Show last 5, newest first
+
+      if (events.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <span class="material-icons-outlined">inbox</span>
+            <div class="empty-state-title">No pending events</div>
+            <div>Events will appear here as users view and click ads</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = displayEvents.map(event => `
+        <div class="event-item">
+          <span class="event-type ${event.type}">${event.type}</span>
+          <span class="event-details">${truncateId(event.campaignId)}${event.promotionId ? ' → ' + truncateId(event.promotionId) : ''}</span>
+          <span class="event-time">${formatTime(event.timestamp)}</span>
+        </div>
+      `).join('');
+    }
+
+    // Update full event list (events page)
+    function updateFullEventList(events) {
+      const container = document.getElementById('events-full-list');
+      const displayEvents = [...events].reverse(); // Show newest first
+
+      if (events.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <span class="material-icons-outlined">inbox</span>
+            <div class="empty-state-title">No pending events</div>
+            <div>Events will appear here as users view and click ads</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = displayEvents.map((event, index) => `
+        <div class="event-item">
+          <span class="event-type ${event.type}">${event.type}</span>
+          <span class="event-details">
+            <strong>Campaign:</strong> ${truncateId(event.campaignId)}
+            ${event.promotionId ? `<br><strong>Promotion:</strong> ${truncateId(event.promotionId)}` : ''}
+          </span>
+          <span class="event-time">${formatTime(event.timestamp)}</span>
+        </div>
+      `).join('');
+    }
+
+    // Update campaigns summary (dashboard - limited to 3)
+    function updateCampaignsSummary(campaigns) {
+      const container = document.getElementById('campaigns-summary');
+      const displayCampaigns = campaigns.slice(0, 3);
+
+      if (campaigns.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <span class="material-icons-outlined">campaign</span>
+            <div class="empty-state-title">No active campaigns</div>
+            <div>Campaigns will appear here when available</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Brand</th>
+              <th>Campaign ID</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${displayCampaigns.map(campaign => `
+              <tr>
+                <td><strong>${campaign.brand || 'Unknown'}</strong></td>
+                <td class="mono">${truncateId(campaign.id || campaign.campaignId)}</td>
+                <td>
+                  <span class="chip ${campaign.active !== false ? 'chip-success' : 'chip-error'}">
+                    ${campaign.active !== false ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td>
+                  <button class="btn btn-secondary" onclick="viewReport('${campaign.id || campaign.campaignId}', '${(campaign.brand || 'Campaign').replace(/'/g, "\\'")}')">
+                    <span class="material-icons-outlined">analytics</span>
+                    Report
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // Update campaigns list (full list)
+    function updateCampaignsList(campaigns) {
+      const container = document.getElementById('campaigns-list');
+
+      if (campaigns.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <span class="material-icons-outlined">campaign</span>
+            <div class="empty-state-title">No active campaigns</div>
+            <div>Campaigns will appear here when available from the factory</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Brand</th>
+              <th>Campaign ID</th>
+              <th>Promotions</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${campaigns.map(campaign => `
+              <tr>
+                <td><strong>${campaign.brand || 'Unknown'}</strong></td>
+                <td class="mono">${truncateId(campaign.id || campaign.campaignId)}</td>
+                <td>${campaign.promotionCount || campaign.promotions?.length || 0}</td>
+                <td>
+                  <span class="chip ${campaign.active !== false ? 'chip-success' : 'chip-error'}">
+                    ${campaign.active !== false ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td>
+                  <button class="btn btn-secondary" onclick="viewReport('${campaign.id || campaign.campaignId}', '${(campaign.brand || 'Campaign').replace(/'/g, "\\'")}')">
+                    <span class="material-icons-outlined">analytics</span>
+                    Report
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // Flush events
+    async function flushEvents() {
+      try {
+        document.getElementById('flush-btn').disabled = true;
+
+        const response = await fetch(`${BASE_PATH}/flush`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'success') {
+          showToast('Events flushed successfully', 'success');
+          await loadData();
+        } else {
+          throw new Error(result.message || 'Failed to flush events');
+        }
+      } catch (error) {
+        console.error('[admin] Flush error:', error);
+        showToast('Failed to flush events: ' + error.message, 'error');
+      } finally {
+        document.getElementById('flush-btn').disabled = false;
+      }
+    }
+
+    // View campaign report
+    async function viewReport(campaignId, brand) {
+      document.getElementById('report-modal').classList.add('active');
+      document.getElementById('report-title').textContent = brand;
+      document.getElementById('report-content').innerHTML = '<div class="loading"><div class="spinner"></div>Loading report...</div>';
+
+      try {
+        // Get campaign details
+        const campaignResponse = await fetch(`${BASE_PATH}/campaigns/${campaignId}`, {
+          credentials: 'include'
+        });
+        const campaignData = await campaignResponse.json();
+
+        if (campaignData.status !== 'success') {
+          throw new Error('Failed to load campaign details');
+        }
+
+        const campaign = campaignData.campaign;
+
+        // Try to get report from factory
+        let factoryReport = null;
+        if (factoryUrl) {
+          try {
+            const reportResponse = await fetch(`${factoryUrl}/api/campaign/${campaignId}/report`, {
+              credentials: 'include'
+            });
+            if (reportResponse.ok) {
+              const reportData = await reportResponse.json();
+              if (reportData.status === 'success') {
+                factoryReport = reportData;
+              }
+            }
+          } catch (e) {
+            console.log('Could not fetch factory report:', e);
+          }
+        }
+
+        // Calculate stats from pending events
+        const events = agentStatus?.chain?.events || [];
+        const campaignEvents = events.filter(e => e.campaignId === campaignId);
+        const pendingViews = campaignEvents.filter(e => e.type === 'view').length;
+        const pendingClicks = campaignEvents.filter(e => e.type === 'click').length;
+
+        const totalViews = factoryReport?.stats?.views || 0;
+        const totalClicks = factoryReport?.stats?.clicks || 0;
+        const ctr = factoryReport?.stats?.ctr || (totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(2) + '%' : '0.00%');
+        const totalSpent = factoryReport?.stats?.totalSpent ? formatWei(factoryReport.stats.totalSpent) : '-';
+
+        document.getElementById('report-content').innerHTML = `
+          ${factoryReport ? `
+            <h4 style="margin-bottom: 16px; font-family: 'Google Sans', sans-serif; font-size: 14px; color: var(--gcp-gray-700);">Historical Performance</h4>
+            <div class="report-metrics">
+              <div class="report-metric">
+                <div class="report-metric-value">${totalViews.toLocaleString()}</div>
+                <div class="report-metric-label">Total Views</div>
+              </div>
+              <div class="report-metric">
+                <div class="report-metric-value">${totalClicks.toLocaleString()}</div>
+                <div class="report-metric-label">Total Clicks</div>
+              </div>
+              <div class="report-metric">
+                <div class="report-metric-value">${ctr}</div>
+                <div class="report-metric-label">CTR</div>
+              </div>
+              <div class="report-metric">
+                <div class="report-metric-value">${totalSpent}</div>
+                <div class="report-metric-label">Earnings</div>
+              </div>
+            </div>
+          ` : ''}
+
+          <h4 style="margin: 24px 0 16px; font-family: 'Google Sans', sans-serif; font-size: 14px; color: var(--gcp-gray-700);">Pending Events</h4>
+          <div class="report-metrics">
+            <div class="report-metric">
+              <div class="report-metric-value">${pendingViews}</div>
+              <div class="report-metric-label">Views</div>
+            </div>
+            <div class="report-metric">
+              <div class="report-metric-value">${pendingClicks}</div>
+              <div class="report-metric-label">Clicks</div>
+            </div>
+            <div class="report-metric">
+              <div class="report-metric-value">${campaign.promotions?.length || 0}</div>
+              <div class="report-metric-label">Promotions</div>
+            </div>
+            <div class="report-metric">
+              <div class="report-metric-value">${pendingViews + pendingClicks}</div>
+              <div class="report-metric-label">Total</div>
+            </div>
+          </div>
+
+          <div class="properties-list" style="margin-top: 24px;">
+            <div class="property-row">
+              <span class="property-label">Campaign ID</span>
+              <span class="property-value">${campaignId}</span>
+            </div>
+            <div class="property-row">
+              <span class="property-label">Landing URL</span>
+              <span class="property-value"><a href="${campaign.landingUrl}" target="_blank">${campaign.landingUrl || '-'}</a></span>
+            </div>
+          </div>
+
+          ${!factoryReport ? `
+            <div class="info-banner">
+              <span class="material-icons-outlined">info</span>
+              <span class="info-banner-text">Historical data not available. ${factoryUrl ? 'The factory may require authentication.' : 'Factory URL is not configured.'}</span>
+            </div>
+          ` : ''}
+        `;
+      } catch (error) {
+        console.error('[admin] Report error:', error);
+        document.getElementById('report-content').innerHTML = `
+          <div class="empty-state">
+            <span class="material-icons-outlined">error_outline</span>
+            <div class="empty-state-title">Failed to load report</div>
+            <div>${error.message}</div>
+          </div>
+        `;
+      }
+    }
+
+    // Format wei to readable value
+    function formatWei(wei) {
+      if (!wei) return '-';
+      const eth = parseFloat(wei) / 1e18;
+      if (eth < 0.001) return '< 0.001 ETH';
+      return eth.toFixed(4) + ' ETH';
+    }
+
+    // Close modal
+    function closeModal() {
+      document.getElementById('report-modal').classList.remove('active');
+    }
+
+    // Show toast message
+    function showToast(text, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `<span class="material-icons-outlined">${type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info'}</span>${text}`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.remove();
+      }, 4000);
+    }
+
+    // Utility functions
+    function truncateId(id) {
+      if (!id) return '-';
+      if (id.length <= 16) return id;
+      return `${id.slice(0, 8)}...${id.slice(-4)}`;
+    }
+
+    function formatTime(timestamp) {
+      if (!timestamp) return '-';
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString();
+    }
+
+    // Navigation handling
+    function showSection(sectionName) {
+      // Update nav items
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.section === sectionName) {
+          item.classList.add('active');
+        }
+      });
+
+      // Update content sections
+      document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+      });
+      const targetSection = document.getElementById(`section-${sectionName}`);
+      if (targetSection) {
+        targetSection.classList.add('active');
+      }
+    }
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const section = item.dataset.section;
+        if (section) {
+          showSection(section);
+        }
+      });
+    });
+
+    // Initialize
+    loadData();
+
+    // Auto-refresh every 30 seconds
+    setInterval(loadData, 30000);
+
+    // Close modal on ESC key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // Close modal on backdrop click
+    document.getElementById('report-modal').addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay')) closeModal();
+    });
+  </script>
+</body>
+</html>

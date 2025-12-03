@@ -6,6 +6,7 @@
   "author": "GeistM",
   "main": "index.mjs",
   "icon": "/agent/geistm/adnet-agent/icon.webp",
+  "widget": "/agent/geistm/adnet-agent/widget",
   "permissions": [
     "epistery:wallet:read",
     "epistery:wallet:sign"
