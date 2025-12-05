@@ -1,6 +1,5 @@
 import express from 'express';
 import crypto from 'crypto';
-import { Epistery, Config } from 'epistery';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -10,13 +9,19 @@ const __dirname = path.dirname(__filename);
 /**
  * Adnet Agent - Publisher-side component
  *
- * The agent manages ad display and event tracking for publishers.
- * It batches events into a hash tree/chain and posts to contracts
- * when threshold is reached.
+ * Follows epistery-host plugin architecture:
+ * - Constructor receives config from manifest
+ * - Gets epistery instance from app.locals
+ * - attach(router) called by AgentManager
+ * - cleanup() called on shutdown
  */
 export default class AdnetAgent {
-  constructor(options = {}) {
-    this.threshold = options.threshold || 5; // Number of events before posting to contract
+  constructor(config = {}) {
+    this.config = config;
+    this.epistery = null;
+
+    this.threshold = config.threshold || 5;
+    this.factoryUrl = config.factoryUrl || 'https://adnet.geistm.com';
 
     // Hash chain for transaction batching
     this.eventChain = [];
@@ -27,42 +32,8 @@ export default class AdnetAgent {
     this.cacheExpiry = 0;
     this.cacheDuration = 5 * 60 * 1000; // 5 minutes
 
-    // Initialize Epistery and load config
-    this.initEpistery();
-  }
-
-  async initEpistery() {
-    try {
-      const domain = process.argv[2];
-
-      // Load root config for factory URL
-      const rootConfig = new Config();
-      rootConfig.load(); // ~/.epistery/config.ini
-      this.factoryUrl = rootConfig.data.adnet?.factoryUrl;
-
-      // If domain provided (standalone mode), load domain-specific config
-      if (domain) {
-        this.config = new Config();
-        this.config.setPath(domain); // ~/.epistery/[domain]/config.ini
-        this.config.load();
-
-        this.publisherAddress = this.config.data.wallet?.address;
-        this.domain = domain;
-        this.epistery = await Epistery.connect();
-
-        console.log('Adnet Agent initialized (standalone mode)');
-        console.log('Publisher domain:', this.domain);
-        console.log('Publisher address:', this.publisherAddress);
-      } else {
-        // Hosted mode - domain/wallet determined per-request
-        console.log('Adnet Agent initialized (hosted mode)');
-      }
-
-      console.log('Factory URL:', this.factoryUrl);
-      console.log('Threshold:', this.threshold);
-    } catch (error) {
-      console.error('Failed to initialize Epistery for agent:', error);
-    }
+    console.log('[adnet] Agent initialized');
+    console.log('[adnet] Threshold:', this.threshold);
   }
 
   /**
@@ -83,7 +54,7 @@ export default class AdnetAgent {
     const hash = this.hashEvent(event);
     const chainedEvent = {
       ...event,
-      hash: hash,
+      hash,
       previousHash: this.lastHash,
       chainIndex: this.eventChain.length
     };
@@ -91,7 +62,7 @@ export default class AdnetAgent {
     this.eventChain.push(chainedEvent);
     this.lastHash = hash;
 
-    console.log(`Event added to chain. Total: ${this.eventChain.length}/${this.threshold}`);
+    console.log(`[adnet] Event added. Chain: ${this.eventChain.length}/${this.threshold}`);
 
     // Check if we've reached threshold
     if (this.eventChain.length >= this.threshold) {
@@ -107,7 +78,8 @@ export default class AdnetAgent {
   async flushEvents() {
     if (this.eventChain.length === 0) return;
 
-    console.log(`Flushing ${this.eventChain.length} events to factory`);
+    const factoryUrl = this.factoryUrl || this.epistery?.domain?.config?.adnet?.factoryUrl || 'https://adnet.geistm.com';
+    console.log(`[adnet] Flushing ${this.eventChain.length} events`);
 
     // Group events by campaign
     const eventsByCampaign = {};
@@ -115,40 +87,29 @@ export default class AdnetAgent {
       if (!eventsByCampaign[event.campaignId]) {
         eventsByCampaign[event.campaignId] = [];
       }
-      eventsByCampaign[event.campaignId].push({
-        type: event.type,
-        promotionId: event.promotionId,
-        publisher: this.publisherAddress,
-        user: event.userAddress,
-        timestamp: event.timestamp,
-        hash: event.hash,
-        previousHash: event.previousHash,
-        chainIndex: event.chainIndex
-      });
+      eventsByCampaign[event.campaignId].push(event);
     }
 
-    // Post to each campaign contract
+    // Post to each campaign
     const results = [];
     for (const [campaignId, events] of Object.entries(eventsByCampaign)) {
       try {
-        const response = await fetch(`${this.factoryUrl}/api/campaign/${campaignId}/record`, {
+        const response = await fetch(`${factoryUrl}/api/campaign/${campaignId}/record`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ events })
         });
 
         const result = await response.json();
         results.push({ campaignId, success: result.status === 'success', result });
-        console.log(`Posted ${events.length} events to campaign ${campaignId}`);
+        console.log(`[adnet] Posted ${events.length} events to campaign ${campaignId}`);
       } catch (error) {
-        console.error(`Failed to post events to campaign ${campaignId}:`, error.message);
+        console.error(`[adnet] Failed to post to campaign ${campaignId}:`, error.message);
         results.push({ campaignId, success: false, error: error.message });
       }
     }
 
-    // Clear the chain after posting
+    // Clear the chain
     this.eventChain = [];
     this.lastHash = crypto.createHash('sha256').update(Date.now().toString()).digest('hex');
 
@@ -159,13 +120,13 @@ export default class AdnetAgent {
    * Fetch available campaigns from factory
    */
   async fetchCampaigns() {
-    // Check cache
     if (Date.now() < this.cacheExpiry && this.campaignsCache.length > 0) {
       return this.campaignsCache;
     }
 
     try {
-      const response = await fetch(`${this.factoryUrl}/api/ads?active=true`);
+      const factoryUrl = this.factoryUrl || 'https://adnet.geistm.com';
+      const response = await fetch(`${factoryUrl}/api/ads?active=true`);
       const data = await response.json();
 
       if (data.status === 'success') {
@@ -173,107 +134,103 @@ export default class AdnetAgent {
         this.cacheExpiry = Date.now() + this.cacheDuration;
         return this.campaignsCache;
       }
-
       return [];
     } catch (error) {
-      console.error('Failed to fetch campaigns:', error);
+      console.error('[adnet] Failed to fetch campaigns:', error.message);
       return [];
     }
   }
 
   /**
-   * Get campaign details
+   * Verify delegation token from request (epistery pattern)
    */
-  async getCampaign(campaignId) {
+  async verifyDelegationToken(req) {
+    const delegationHeader = req.headers['x-epistery-delegation'];
+    const delegationCookie = req.cookies?.epistery_delegation;
+    const tokenData = delegationHeader || delegationCookie;
+
+    if (!tokenData) {
+      return { valid: false };
+    }
+
     try {
-      const response = await fetch(`${this.factoryUrl}/api/campaign/${campaignId}`);
-      const data = await response.json();
+      const token = typeof tokenData === 'string' ? JSON.parse(tokenData) : tokenData;
+      const { delegation, signature } = token;
 
-      if (data.status === 'success') {
-        return data.contract;
+      if (!delegation || !signature) {
+        return { valid: false, error: 'Invalid token structure' };
       }
 
-      return null;
+      if (Date.now() > delegation.expires) {
+        return { valid: false, error: 'Token expired' };
+      }
+
+      const requestDomain = req.hostname || req.get('host')?.split(':')[0];
+      if (delegation.audience !== requestDomain) {
+        return { valid: false, error: 'Token audience mismatch' };
+      }
+
+      return {
+        valid: true,
+        address: delegation.subject,
+        domain: delegation.audience,
+        scope: delegation.scope
+      };
     } catch (error) {
-      console.error('Failed to fetch campaign:', error);
-      return null;
+      return { valid: false, error: error.message };
     }
   }
 
   /**
-   * Attach agent routes to Express app
+   * Attach agent routes to Express router
+   * Called by AgentManager after instantiation
    */
-  attach(app) {
-    app.use(express.static(path.join(__dirname, 'public')));
-    // Serve client script
-    app.get('/client.js', (req, res) => {
-      res.sendFile(path.join(__dirname, 'client.js'));
+  attach(router) {
+    // Get epistery instance from app.locals (epistery pattern)
+    router.use((req, res, next) => {
+      if (!this.epistery && req.app.locals.epistery) {
+        this.epistery = req.app.locals.epistery;
+        console.log('[adnet] Epistery instance attached');
+      }
+      next();
     });
 
-    // Get available campaigns
-    app.get('/campaigns', async (req, res) => {
-      try {
-        const campaigns = await this.fetchCampaigns();
-        res.json({
-          status: 'success',
-          campaigns: campaigns,
-          count: campaigns.length
-        });
-      } catch (error) {
-        res.status(500).json({
-          status: 'error',
-          message: error.message
-        });
-      }
+    // Static files
+    router.use(express.static(path.join(__dirname, 'public')));
+
+    // Client script
+    router.get('/client.js', (req, res) => {
+      res.sendFile(path.join(__dirname, 'client', 'client.js'));
     });
 
-    // Get specific campaign with promotions
-    app.get('/campaigns/:id', async (req, res) => {
-      try {
-        const campaign = await this.getCampaign(req.params.id);
-        if (!campaign) {
-          return res.status(404).json({
-            status: 'error',
-            message: 'Campaign not found'
-          });
-        }
-
-        res.json({
-          status: 'success',
-          campaign: campaign
-        });
-      } catch (error) {
-        res.status(500).json({
-          status: 'error',
-          message: error.message
-        });
-      }
+    // Get campaigns
+    router.get('/campaigns', async (req, res) => {
+      const campaigns = await this.fetchCampaigns();
+      res.json({ status: 'success', campaigns, count: campaigns.length });
     });
 
     // Record event (view or click)
-    app.post('/record', (req, res) => {
+    router.post('/record', async (req, res) => {
       try {
-        const { campaignId, promotionId, type, userAddress } = req.body;
+        const { campaignId, promotionId, type } = req.body;
 
         if (!campaignId || !type) {
-          return res.status(400).json({
-            status: 'error',
-            message: 'campaignId and type are required'
-          });
+          return res.status(400).json({ status: 'error', message: 'campaignId and type required' });
         }
 
         if (!['view', 'click'].includes(type)) {
-          return res.status(400).json({
-            status: 'error',
-            message: 'type must be "view" or "click"'
-          });
+          return res.status(400).json({ status: 'error', message: 'type must be view or click' });
         }
+
+        // Check delegation (optional - anonymous OK)
+        const verification = await this.verifyDelegationToken(req);
 
         const event = {
           campaignId,
           promotionId,
           type,
-          userAddress,
+          userAddress: verification.valid ? verification.address : null,
+          userVerified: verification.valid,
           timestamp: new Date().toISOString()
         };
 
@@ -281,65 +238,56 @@ export default class AdnetAgent {
 
         res.json({
           status: 'success',
-          event: {
-            hash: chainedEvent.hash,
-            chainIndex: chainedEvent.chainIndex
-          },
+          event: { hash: chainedEvent.hash, chainIndex: chainedEvent.chainIndex },
           chainLength: this.eventChain.length,
           threshold: this.threshold
         });
       } catch (error) {
-        console.error('Event recording error:', error);
-        res.status(500).json({
-          status: 'error',
-          message: error.message
-        });
+        console.error('[adnet] Record error:', error);
+        res.status(500).json({ status: 'error', message: error.message });
       }
     });
 
-    // Get chain status
-    app.get('/status', (req, res) => {
+    // Status
+    router.get('/status', (req, res) => {
       res.json({
         status: 'success',
         chain: {
           length: this.eventChain.length,
           threshold: this.threshold,
-          lastHash: this.lastHash,
-          events: this.eventChain
+          lastHash: this.lastHash
         },
-        publisher: {
-          address: this.publisherAddress,
-          domain: this.domain
-        }
+        factory: { url: this.factoryUrl }
       });
     });
 
-    // Manual flush (for testing)
-    app.post('/flush', async (req, res) => {
-      try {
-        const results = await this.flushEvents();
-        res.json({
-          status: 'success',
-          results: results
-        });
-      } catch (error) {
-        res.status(500).json({
-          status: 'error',
-          message: error.message
-        });
-      }
+    // Manual flush
+    router.post('/flush', async (req, res) => {
+      const results = await this.flushEvents();
+      res.json({ status: 'success', results });
     });
 
+    // Health check
+    router.get('/health', (req, res) => {
+      res.json({
+        status: 'healthy',
+        pendingEvents: this.eventChain.length,
+        factoryUrl: this.factoryUrl
+      });
+    });
+
+    console.log('[adnet] Agent routes attached');
     return this;
   }
 
   /**
-   * Periodic flush (call this in a setInterval if desired)
+   * Cleanup on shutdown
    */
-  async periodicFlush() {
+  async cleanup() {
     if (this.eventChain.length > 0) {
-      console.log('Periodic flush triggered');
+      console.log('[adnet] Flushing events on shutdown');
       await this.flushEvents();
     }
+    console.log('[adnet] Cleanup complete');
   }
 }
