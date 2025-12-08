@@ -23,6 +23,10 @@ export default class AdnetAgent {
     this.threshold = config.threshold || 5;
     this.factoryUrl = config.factoryUrl || 'https://adnet.geistm.com';
 
+    // IPFS configuration (same as message-board)
+    this.ipfsUrl = config.ipfsUrl || 'https://rootz.digital/api/v0';
+    this.ipfsGateway = config.ipfsGateway || 'https://rootz.digital';
+
     // Hash chain for transaction batching
     this.eventChain = [];
     this.lastHash = '0000000000000000000000000000000000000000000000000000000000000000';
@@ -34,6 +38,7 @@ export default class AdnetAgent {
 
     console.log('[adnet] Agent initialized');
     console.log('[adnet] Threshold:', this.threshold);
+    console.log('[adnet] IPFS URL:', this.ipfsUrl);
   }
 
   /**
@@ -73,13 +78,47 @@ export default class AdnetAgent {
   }
 
   /**
-   * Post batched events to campaign contract
+   * Upload data to IPFS (same pattern as message-board)
+   */
+  async uploadToIPFS(data) {
+    if (!this.ipfsUrl) {
+      console.warn('[adnet] IPFS URL not configured');
+      return null;
+    }
+
+    try {
+      const formData = new FormData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      formData.append('file', blob, 'events.json');
+
+      const response = await fetch(`${this.ipfsUrl}/add`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        console.error(`[adnet] IPFS upload failed: ${response.status}`);
+        return null;
+      }
+
+      const result = await response.json();
+      return {
+        hash: result.Hash,
+        url: `${this.ipfsGateway}/ipfs/${result.Hash}`
+      };
+    } catch (error) {
+      console.error('[adnet] IPFS upload error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Flush batched events to IPFS as Data Wallet
    */
   async flushEvents() {
     if (this.eventChain.length === 0) return;
 
-    const factoryUrl = this.factoryUrl || this.epistery?.domain?.config?.adnet?.factoryUrl || 'https://adnet.geistm.com';
-    console.log(`[adnet] Flushing ${this.eventChain.length} events`);
+    console.log(`[adnet] Flushing ${this.eventChain.length} events to IPFS`);
 
     // Group events by campaign
     const eventsByCampaign = {};
@@ -90,21 +129,57 @@ export default class AdnetAgent {
       eventsByCampaign[event.campaignId].push(event);
     }
 
-    // Post to each campaign
     const results = [];
-    for (const [campaignId, events] of Object.entries(eventsByCampaign)) {
-      try {
-        const response = await fetch(`${factoryUrl}/api/campaign/${campaignId}/record`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ events })
-        });
 
-        const result = await response.json();
-        results.push({ campaignId, success: result.status === 'success', result });
-        console.log(`[adnet] Posted ${events.length} events to campaign ${campaignId}`);
+    for (const [campaignId, events] of Object.entries(eventsByCampaign)) {
+      const views = events.filter(e => e.type === 'view').length;
+      const clicks = events.filter(e => e.type === 'click').length;
+
+      // Create Data Wallet structure (same pattern as message-board)
+      const dataWallet = {
+        type: 'adnet-event-batch',
+        version: '1.0.0',
+        campaignId,
+        events: events.map(e => ({
+          type: e.type,
+          promotionId: e.promotionId,
+          userAddress: e.userAddress,
+          userVerified: e.userVerified,
+          timestamp: e.timestamp,
+          hash: e.hash,
+          previousHash: e.previousHash,
+          chainIndex: e.chainIndex
+        })),
+        summary: {
+          views,
+          clicks,
+          total: events.length
+        },
+        chain: {
+          lastHash: this.lastHash,
+          length: events.length
+        },
+        publisher: {
+          domain: this.epistery?.domainName || 'unknown',
+          address: this.epistery?.domain?.wallet?.address || null
+        },
+        factory: this.factoryUrl,
+        timestamp: new Date().toISOString()
+      };
+
+      // Upload to IPFS
+      try {
+        const ipfsResult = await this.uploadToIPFS(dataWallet);
+        if (ipfsResult) {
+          console.log(`[adnet] Campaign ${campaignId}: ${events.length} events (${views} views, ${clicks} clicks)`);
+          console.log(`[adnet]   IPFS: ${ipfsResult.url}`);
+          results.push({ campaignId, success: true, ipfsHash: ipfsResult.hash, ipfsUrl: ipfsResult.url });
+        } else {
+          console.log(`[adnet] Campaign ${campaignId}: ${events.length} events (IPFS unavailable, logged locally)`);
+          results.push({ campaignId, success: false, error: 'IPFS unavailable' });
+        }
       } catch (error) {
-        console.error(`[adnet] Failed to post to campaign ${campaignId}:`, error.message);
+        console.error(`[adnet] Failed to upload campaign ${campaignId}:`, error.message);
         results.push({ campaignId, success: false, error: error.message });
       }
     }
@@ -282,7 +357,8 @@ export default class AdnetAgent {
           threshold: this.threshold,
           lastHash: this.lastHash
         },
-        factory: { url: this.factoryUrl }
+        factory: { url: this.factoryUrl },
+        ipfs: { url: this.ipfsUrl, gateway: this.ipfsGateway }
       });
     });
 
@@ -297,7 +373,8 @@ export default class AdnetAgent {
       res.json({
         status: 'healthy',
         pendingEvents: this.eventChain.length,
-        factoryUrl: this.factoryUrl
+        factoryUrl: this.factoryUrl,
+        ipfsUrl: this.ipfsUrl
       });
     });
 
