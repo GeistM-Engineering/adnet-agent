@@ -14,49 +14,17 @@
       border-radius: 6px;
       padding: 16px;
       min-height: 80px;
-    }
-
-    .widget-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
+      gap: 12px;
     }
 
-    .widget-title {
-      font-weight: 600;
+    .widget-container p {
+      margin: 0;
       font-size: 14px;
-      color: #333;
-    }
-
-    .widget-status {
-      font-size: 12px;
-      padding: 4px 8px;
-      border-radius: 4px;
-      background: #d4edda;
-      color: #155724;
-    }
-
-    .widget-stats {
-      display: flex;
-      gap: 16px;
-      margin-bottom: 12px;
-    }
-
-    .stat {
-      text-align: center;
-    }
-
-    .stat-value {
-      font-size: 20px;
-      font-weight: bold;
-      color: #007bff;
-    }
-
-    .stat-label {
-      font-size: 11px;
-      color: #666;
-      text-transform: uppercase;
+      color: #495057;
+      flex: 1;
     }
 
     .widget-buttons {
@@ -99,58 +67,11 @@
 </head>
 <body>
   <div class="widget-container">
-    <div class="widget-header">
-      <span class="widget-title">📊 Adnet Agent</span>
-      <span class="widget-status" id="status">Loading...</span>
-    </div>
-
-    <div class="widget-stats">
-      <div class="stat">
-        <div class="stat-value" id="pending">-</div>
-        <div class="stat-label">Pending</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value" id="total-views">-</div>
-        <div class="stat-label">Views</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value" id="total-clicks">-</div>
-        <div class="stat-label">Clicks</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value" id="flushes">-</div>
-        <div class="stat-label">Flushes</div>
-      </div>
-    </div>
-
+    <p>View advertisement controls and settings</p>
     <div class="widget-buttons">
       <a href="/agent/geistm/adnet-agent/status" target="_blank" class="widget-btn widget-btn-primary">View Status</a>
       <a href="/agent/geistm/adnet-agent/admin" target="_blank" class="widget-btn widget-btn-secondary">Admin</a>
     </div>
   </div>
-
-  <script>
-    async function loadStats() {
-      try {
-        const response = await fetch('/agent/geistm/adnet-agent/status');
-        const data = await response.json();
-
-        document.getElementById('status').textContent = 'Active';
-        document.getElementById('pending').textContent = data.chain?.length || 0;
-        document.getElementById('total-views').textContent = data.stats?.totalViews || 0;
-        document.getElementById('total-clicks').textContent = data.stats?.totalClicks || 0;
-        document.getElementById('flushes').textContent = data.stats?.flushCount || 0;
-      } catch (error) {
-        console.error('[adnet-widget] Failed to load stats:', error);
-        document.getElementById('status').textContent = 'Error';
-        document.getElementById('status').style.background = '#f8d7da';
-        document.getElementById('status').style.color = '#721c24';
-      }
-    }
-
-    loadStats();
-    // Refresh every 30 seconds
-    setInterval(loadStats, 30000);
-  </script>
 </body>
 </html>
