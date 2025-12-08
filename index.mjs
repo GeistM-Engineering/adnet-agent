@@ -2,6 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,12 +15,18 @@ const __dirname = path.dirname(__filename);
  * - Gets epistery instance from app.locals
  * - attach(router) called by AgentManager
  * - cleanup() called on shutdown
+ *
+ * Domain-specific storage pattern (same as message-board):
+ * - Each publisher domain gets its own event chain
+ * - Events persist to disk and survive restarts
+ * - Batches flush to IPFS as Data Wallets
  */
 export default class AdnetAgent {
   constructor(config = {}) {
     this.config = config;
     this.epistery = null;
 
+    // Configuration
     this.threshold = config.threshold || 5;
     this.factoryUrl = config.factoryUrl || 'https://adnet.geistm.com';
 
@@ -27,51 +34,179 @@ export default class AdnetAgent {
     this.ipfsUrl = config.ipfsUrl || 'https://rootz.digital/api/v0';
     this.ipfsGateway = config.ipfsGateway || 'https://rootz.digital';
 
-    // Hash chain for transaction batching
-    this.eventChain = [];
-    this.lastHash = '0000000000000000000000000000000000000000000000000000000000000000';
-
     // Cache of available campaigns
     this.campaignsCache = [];
     this.cacheExpiry = 0;
     this.cacheDuration = 5 * 60 * 1000; // 5 minutes
 
+    // Data storage - domain-specific paths set per-request
+    this.dataDir = path.join(__dirname, 'data');
+
+    // Per-domain state (keyed by domain)
+    this.domainStates = new Map();
+
     console.log('[adnet] Agent initialized');
     console.log('[adnet] Threshold:', this.threshold);
     console.log('[adnet] IPFS URL:', this.ipfsUrl);
+    console.log('[adnet] Factory URL:', this.factoryUrl);
   }
 
   /**
-   * Create a hash of transaction data
+   * Get domain-specific file paths and initialize if needed
    */
-  hashEvent(event) {
+  getDomainFiles(domain) {
+    const domainDir = path.join(this.dataDir, domain);
+    const eventsFile = path.join(domainDir, 'events.json');
+    const batchFile = path.join(domainDir, 'batch.json');
+    const historyFile = path.join(domainDir, 'history.json');
+
+    // Ensure domain directory exists
+    if (!existsSync(domainDir)) {
+      mkdirSync(domainDir, { recursive: true });
+      console.log(`[adnet] Created data directory for domain: ${domain}`);
+    }
+
+    // Initialize events file (current pending events)
+    if (!existsSync(eventsFile)) {
+      writeFileSync(eventsFile, JSON.stringify({
+        events: [],
+        lastHash: '0000000000000000000000000000000000000000000000000000000000000000',
+        updated: Date.now()
+      }));
+    }
+
+    // Initialize batch file (chain state)
+    if (!existsSync(batchFile)) {
+      writeFileSync(batchFile, JSON.stringify({
+        chain: [],
+        lastHash: '0000000000000000000000000000000000000000000000000000000000000000',
+        lastFlush: null,
+        flushCount: 0
+      }));
+    }
+
+    // Initialize history file (record of all flushes)
+    if (!existsSync(historyFile)) {
+      writeFileSync(historyFile, JSON.stringify({
+        flushes: [],
+        totalEvents: 0,
+        totalViews: 0,
+        totalClicks: 0
+      }));
+    }
+
+    return { eventsFile, batchFile, historyFile, domainDir };
+  }
+
+  /**
+   * Get or initialize domain state
+   */
+  getDomainState(domain) {
+    if (!this.domainStates.has(domain)) {
+      const { eventsFile, batchFile } = this.getDomainFiles(domain);
+      const eventsData = JSON.parse(readFileSync(eventsFile, 'utf8'));
+      const batchData = JSON.parse(readFileSync(batchFile, 'utf8'));
+
+      this.domainStates.set(domain, {
+        eventChain: eventsData.events || [],
+        lastHash: eventsData.lastHash || '0000000000000000000000000000000000000000000000000000000000000000',
+        flushCount: batchData.flushCount || 0
+      });
+
+      console.log(`[adnet] Loaded state for ${domain}: ${eventsData.events?.length || 0} pending events`);
+    }
+    return this.domainStates.get(domain);
+  }
+
+  /**
+   * Save domain state to file
+   */
+  saveDomainState(domain) {
+    const state = this.domainStates.get(domain);
+    if (!state) return;
+
+    const { eventsFile, batchFile } = this.getDomainFiles(domain);
+
+    // Save current events
+    writeFileSync(eventsFile, JSON.stringify({
+      events: state.eventChain,
+      lastHash: state.lastHash,
+      updated: Date.now()
+    }, null, 2));
+
+    // Save batch state
+    writeFileSync(batchFile, JSON.stringify({
+      chain: state.eventChain,
+      lastHash: state.lastHash,
+      lastFlush: Date.now(),
+      flushCount: state.flushCount
+    }, null, 2));
+  }
+
+  /**
+   * Record flush to history
+   */
+  recordFlushHistory(domain, flushResult) {
+    const { historyFile } = this.getDomainFiles(domain);
+    const history = JSON.parse(readFileSync(historyFile, 'utf8'));
+
+    const views = flushResult.events?.filter(e => e.type === 'view').length || 0;
+    const clicks = flushResult.events?.filter(e => e.type === 'click').length || 0;
+
+    history.flushes.push({
+      timestamp: new Date().toISOString(),
+      campaignId: flushResult.campaignId,
+      eventCount: flushResult.events?.length || 0,
+      views,
+      clicks,
+      ipfsHash: flushResult.ipfsHash,
+      ipfsUrl: flushResult.ipfsUrl,
+      success: flushResult.success
+    });
+
+    history.totalEvents += flushResult.events?.length || 0;
+    history.totalViews += views;
+    history.totalClicks += clicks;
+
+    writeFileSync(historyFile, JSON.stringify(history, null, 2));
+  }
+
+  /**
+   * Create a hash of event data
+   */
+  hashEvent(event, previousHash) {
     const data = JSON.stringify({
       ...event,
-      previousHash: this.lastHash
+      previousHash
     });
     return crypto.createHash('sha256').update(data).digest('hex');
   }
 
   /**
-   * Add event to the chain
+   * Add event to the domain's chain
    */
-  addEventToChain(event) {
-    const hash = this.hashEvent(event);
+  addEventToChain(domain, event) {
+    const state = this.getDomainState(domain);
+
+    const hash = this.hashEvent(event, state.lastHash);
     const chainedEvent = {
       ...event,
       hash,
-      previousHash: this.lastHash,
-      chainIndex: this.eventChain.length
+      previousHash: state.lastHash,
+      chainIndex: state.eventChain.length
     };
 
-    this.eventChain.push(chainedEvent);
-    this.lastHash = hash;
+    state.eventChain.push(chainedEvent);
+    state.lastHash = hash;
 
-    console.log(`[adnet] Event added. Chain: ${this.eventChain.length}/${this.threshold}`);
+    // Persist to disk
+    this.saveDomainState(domain);
+
+    console.log(`[adnet] ${domain}: Event added. Chain: ${state.eventChain.length}/${this.threshold}`);
 
     // Check if we've reached threshold
-    if (this.eventChain.length >= this.threshold) {
-      this.flushEvents();
+    if (state.eventChain.length >= this.threshold) {
+      this.flushEvents(domain);
     }
 
     return chainedEvent;
@@ -115,14 +250,19 @@ export default class AdnetAgent {
   /**
    * Flush batched events to IPFS as Data Wallet
    */
-  async flushEvents() {
-    if (this.eventChain.length === 0) return;
+  async flushEvents(domain) {
+    const state = this.getDomainState(domain);
 
-    console.log(`[adnet] Flushing ${this.eventChain.length} events to IPFS`);
+    if (state.eventChain.length === 0) {
+      console.log(`[adnet] ${domain}: No events to flush`);
+      return [];
+    }
+
+    console.log(`[adnet] ${domain}: Flushing ${state.eventChain.length} events to IPFS`);
 
     // Group events by campaign
     const eventsByCampaign = {};
-    for (const event of this.eventChain) {
+    for (const event of state.eventChain) {
       if (!eventsByCampaign[event.campaignId]) {
         eventsByCampaign[event.campaignId] = [];
       }
@@ -156,11 +296,11 @@ export default class AdnetAgent {
           total: events.length
         },
         chain: {
-          lastHash: this.lastHash,
+          lastHash: state.lastHash,
           length: events.length
         },
         publisher: {
-          domain: this.epistery?.domainName || 'unknown',
+          domain: domain,
           address: this.epistery?.domain?.wallet?.address || null
         },
         factory: this.factoryUrl,
@@ -170,23 +310,36 @@ export default class AdnetAgent {
       // Upload to IPFS
       try {
         const ipfsResult = await this.uploadToIPFS(dataWallet);
+        const flushResult = {
+          campaignId,
+          events,
+          success: !!ipfsResult,
+          ipfsHash: ipfsResult?.hash,
+          ipfsUrl: ipfsResult?.url,
+          error: ipfsResult ? null : 'IPFS unavailable'
+        };
+
         if (ipfsResult) {
-          console.log(`[adnet] Campaign ${campaignId}: ${events.length} events (${views} views, ${clicks} clicks)`);
-          console.log(`[adnet]   IPFS: ${ipfsResult.url}`);
-          results.push({ campaignId, success: true, ipfsHash: ipfsResult.hash, ipfsUrl: ipfsResult.url });
+          console.log(`[adnet] ${domain}: Campaign ${campaignId}: ${events.length} events (${views} views, ${clicks} clicks)`);
+          console.log(`[adnet] ${domain}:   IPFS: ${ipfsResult.url}`);
         } else {
-          console.log(`[adnet] Campaign ${campaignId}: ${events.length} events (IPFS unavailable, logged locally)`);
-          results.push({ campaignId, success: false, error: 'IPFS unavailable' });
+          console.log(`[adnet] ${domain}: Campaign ${campaignId}: ${events.length} events (IPFS unavailable)`);
         }
+
+        // Record to history
+        this.recordFlushHistory(domain, flushResult);
+        results.push(flushResult);
       } catch (error) {
-        console.error(`[adnet] Failed to upload campaign ${campaignId}:`, error.message);
+        console.error(`[adnet] ${domain}: Failed to upload campaign ${campaignId}:`, error.message);
         results.push({ campaignId, success: false, error: error.message });
       }
     }
 
-    // Clear the chain
-    this.eventChain = [];
-    this.lastHash = crypto.createHash('sha256').update(Date.now().toString()).digest('hex');
+    // Clear the chain and update state
+    state.eventChain = [];
+    state.lastHash = crypto.createHash('sha256').update(Date.now().toString()).digest('hex');
+    state.flushCount++;
+    this.saveDomainState(domain);
 
     return results;
   }
@@ -200,13 +353,13 @@ export default class AdnetAgent {
     }
 
     try {
-      const factoryUrl = this.factoryUrl || 'https://adnet.geistm.com';
-      const response = await fetch(`${factoryUrl}/api/ads?active=true`);
+      const response = await fetch(`${this.factoryUrl}/api/ads?active=true`);
       const data = await response.json();
 
       if (data.status === 'success') {
         this.campaignsCache = data.contracts || [];
         this.cacheExpiry = Date.now() + this.cacheDuration;
+        console.log(`[adnet] Cached ${this.campaignsCache.length} campaigns from factory`);
         return this.campaignsCache;
       }
       return [];
@@ -261,13 +414,20 @@ export default class AdnetAgent {
    * Called by AgentManager after instantiation
    */
   attach(router) {
-    // Get epistery instance from app.locals (epistery pattern)
+    // Get epistery instance from app.locals and set domain per-request
     router.use((req, res, next) => {
       if (!this.epistery && req.app.locals.epistery) {
         this.epistery = req.app.locals.epistery;
         console.log('[adnet] Epistery instance attached');
       }
+      // Store domain in request for domain-specific data access
+      req.publisherDomain = req.hostname || 'localhost';
       next();
+    });
+
+    // Redirect root to status
+    router.get('/', (req, res) => {
+      res.redirect(req.baseUrl + '/status');
     });
 
     // Static files
@@ -276,6 +436,33 @@ export default class AdnetAgent {
     // Client script
     router.get('/client.js', (req, res) => {
       res.sendFile(path.join(__dirname, 'client', 'client.js'));
+    });
+
+    // Serve icon
+    router.get('/icon.webp', (req, res) => {
+      const iconPath = path.join(__dirname, 'icon.webp');
+      if (!existsSync(iconPath)) {
+        return res.status(404).send('Icon not found');
+      }
+      res.sendFile(iconPath);
+    });
+
+    // Serve widget (for agent box)
+    router.get('/widget', (req, res) => {
+      const widgetPath = path.join(__dirname, 'client', 'widget.html');
+      if (!existsSync(widgetPath)) {
+        return res.status(404).send('Widget not found');
+      }
+      res.sendFile(widgetPath);
+    });
+
+    // Serve admin page
+    router.get('/admin', (req, res) => {
+      const adminPath = path.join(__dirname, 'client', 'admin.html');
+      if (!existsSync(adminPath)) {
+        return res.status(404).send('Admin page not found');
+      }
+      res.sendFile(adminPath);
     });
 
     // Get campaigns
@@ -288,13 +475,13 @@ export default class AdnetAgent {
     router.get('/campaigns/:campaignId', async (req, res) => {
       const { campaignId } = req.params;
       console.log(`[adnet] Fetching campaign details for: ${campaignId}`);
-      
+
       // Check cache first
       const cached = this.campaignsCache.find(c => c.id === campaignId);
       if (cached) {
         return res.json(cached);
       }
-      
+
       // Fetch from factory
       try {
         const response = await fetch(`${this.factoryUrl}/api/campaign/${campaignId}`);
@@ -313,6 +500,7 @@ export default class AdnetAgent {
     router.post('/record', async (req, res) => {
       try {
         const { campaignId, promotionId, type } = req.body;
+        const domain = req.publisherDomain;
 
         if (!campaignId || !type) {
           return res.status(400).json({ status: 'error', message: 'campaignId and type required' });
@@ -334,12 +522,13 @@ export default class AdnetAgent {
           timestamp: new Date().toISOString()
         };
 
-        const chainedEvent = this.addEventToChain(event);
+        const chainedEvent = this.addEventToChain(domain, event);
+        const state = this.getDomainState(domain);
 
         res.json({
           status: 'success',
           event: { hash: chainedEvent.hash, chainIndex: chainedEvent.chainIndex },
-          chainLength: this.eventChain.length,
+          chainLength: state.eventChain.length,
           threshold: this.threshold
         });
       } catch (error) {
@@ -348,33 +537,78 @@ export default class AdnetAgent {
       }
     });
 
-    // Status
+    // Status (domain-specific)
     router.get('/status', (req, res) => {
+      const domain = req.publisherDomain;
+      const state = this.getDomainState(domain);
+      const { historyFile } = this.getDomainFiles(domain);
+      const history = JSON.parse(readFileSync(historyFile, 'utf8'));
+
       res.json({
         status: 'success',
+        domain,
         chain: {
-          length: this.eventChain.length,
+          length: state.eventChain.length,
           threshold: this.threshold,
-          lastHash: this.lastHash
+          lastHash: state.lastHash
+        },
+        stats: {
+          flushCount: state.flushCount,
+          totalEvents: history.totalEvents,
+          totalViews: history.totalViews,
+          totalClicks: history.totalClicks
         },
         factory: { url: this.factoryUrl },
         ipfs: { url: this.ipfsUrl, gateway: this.ipfsGateway }
       });
     });
 
-    // Manual flush
+    // History (domain-specific)
+    router.get('/history', (req, res) => {
+      const domain = req.publisherDomain;
+      const { historyFile } = this.getDomainFiles(domain);
+      const history = JSON.parse(readFileSync(historyFile, 'utf8'));
+
+      res.json({
+        status: 'success',
+        domain,
+        ...history
+      });
+    });
+
+    // Manual flush (domain-specific)
     router.post('/flush', async (req, res) => {
-      const results = await this.flushEvents();
-      res.json({ status: 'success', results });
+      const domain = req.publisherDomain;
+      const results = await this.flushEvents(domain);
+      res.json({ status: 'success', domain, results });
     });
 
     // Health check
     router.get('/health', (req, res) => {
+      const domain = req.publisherDomain;
+      const state = this.getDomainState(domain);
+
       res.json({
         status: 'healthy',
-        pendingEvents: this.eventChain.length,
+        domain,
+        pendingEvents: state.eventChain.length,
+        threshold: this.threshold,
         factoryUrl: this.factoryUrl,
         ipfsUrl: this.ipfsUrl
+      });
+    });
+
+    // API health (for widget/admin)
+    router.get('/api/health', (req, res) => {
+      res.json({
+        status: 'ok',
+        agent: 'adnet-agent',
+        version: '1.0.0',
+        config: {
+          threshold: this.threshold,
+          factoryUrl: this.factoryUrl,
+          ipfsUrl: this.ipfsUrl
+        }
       });
     });
 
@@ -383,13 +617,23 @@ export default class AdnetAgent {
   }
 
   /**
-   * Cleanup on shutdown
+   * Cleanup on shutdown - flush all pending events
    */
   async cleanup() {
-    if (this.eventChain.length > 0) {
-      console.log('[adnet] Flushing events on shutdown');
-      await this.flushEvents();
+    console.log('[adnet] Cleanup: Flushing pending events for all domains...');
+
+    for (const [domain, state] of this.domainStates) {
+      if (state.eventChain.length > 0) {
+        console.log(`[adnet] Flushing ${state.eventChain.length} events for ${domain}`);
+        try {
+          await this.flushEvents(domain);
+        } catch (error) {
+          console.error(`[adnet] Failed to flush events for ${domain}:`, error);
+          // Events are persisted to disk, so they won't be lost
+        }
+      }
     }
+
     console.log('[adnet] Cleanup complete');
   }
 }

@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adnet Agent Admin</title>
+  <link rel="stylesheet" href="/style/static.css">
+  <style>
+    .admin-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: var(--spacer3);
+    }
+
+    .console-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacer3);
+      margin-bottom: var(--spacer3);
+    }
+
+    .console-panel {
+      background: var(--bg-color-quiet-d);
+      border: 1px solid var(--page-border);
+      border-radius: 8px;
+      padding: var(--spacer2);
+    }
+
+    .console-panel.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacer2);
+      padding-bottom: var(--spacer);
+      border-bottom: 2px solid var(--primary);
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      color: var(--primary);
+      font-size: 1.25rem;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: var(--spacer);
+      margin-bottom: var(--spacer2);
+    }
+
+    .stat-box {
+      background: var(--bg-color);
+      padding: var(--spacer2);
+      border-radius: 6px;
+      text-align: center;
+      border: 1px solid var(--page-border);
+    }
+
+    .stat-number {
+      display: block;
+      font-size: 2rem;
+      font-weight: bold;
+      color: var(--primary);
+      margin-bottom: var(--spacerhalf);
+    }
+
+    .stat-label {
+      display: block;
+      font-size: 0.875rem;
+      color: var(--text-color-quiet);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .chain-progress {
+      background: var(--bg-color);
+      padding: var(--spacer2);
+      border-radius: 6px;
+      border: 1px solid var(--page-border);
+    }
+
+    .progress-bar {
+      height: 20px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: var(--spacer);
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #28a745, #20c997);
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      text-align: center;
+      font-size: 14px;
+      color: var(--text-color-quiet);
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .history-table th {
+      background: var(--bg-color-d);
+      padding: var(--spacer);
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-color);
+      border-bottom: 2px solid var(--page-border);
+      font-size: 0.875rem;
+    }
+
+    .history-table td {
+      padding: var(--spacer);
+      border-bottom: 1px solid var(--page-border);
+      font-size: 0.875rem;
+    }
+
+    .history-table tr:hover {
+      background: var(--bg-color-d);
+    }
+
+    .mono {
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: var(--text-color-quiet);
+    }
+
+    .ipfs-link {
+      color: var(--action-color);
+      text-decoration: none;
+    }
+
+    .ipfs-link:hover {
+      text-decoration: underline;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--action-color);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--action-color-hilite);
+      transform: translateY(-1px);
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    .config-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--spacer);
+      background: var(--bg-color);
+      border-radius: 6px;
+      margin-bottom: var(--spacer);
+      border: 1px solid var(--page-border);
+    }
+
+    .config-label {
+      font-weight: 500;
+      color: var(--text-color);
+    }
+
+    .config-value {
+      font-family: 'Courier New', monospace;
+      color: var(--primary);
+      font-size: 0.875rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: var(--spacer3);
+      color: var(--text-color-quiet);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .badge-success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .badge-danger {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .message {
+      padding: var(--spacer);
+      border-radius: 6px;
+      margin-bottom: var(--spacer2);
+      border: 1px solid;
+    }
+
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border-color: #c3e6cb;
+    }
+
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border-color: #f5c6cb;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="container">
+      <a href="/" class="logo">
+        <span class="logo-text">📊 Adnet Agent Admin</span>
+      </a>
+      <div style="display: flex; gap: var(--spacer); align-items: center;">
+        <span id="domain-display" style="color: var(--text-color-quiet); font-size: 14px;"></span>
+        <button class="btn btn-primary" onclick="manualFlush()">Flush Events</button>
+      </div>
+    </nav>
+  </header>
+
+  <main class="admin-container">
+    <div id="message-container"></div>
+
+    <!-- Stats Panel -->
+    <section class="console-panel full-width">
+      <div class="panel-header">
+        <h2>Overview</h2>
+      </div>
+      <div class="stats">
+        <div class="stat-box">
+          <span id="pending-events" class="stat-number">-</span>
+          <span class="stat-label">Pending Events</span>
+        </div>
+        <div class="stat-box">
+          <span id="total-views" class="stat-number">-</span>
+          <span class="stat-label">Total Views</span>
+        </div>
+        <div class="stat-box">
+          <span id="total-clicks" class="stat-number">-</span>
+          <span class="stat-label">Total Clicks</span>
+        </div>
+        <div class="stat-box">
+          <span id="flush-count" class="stat-number">-</span>
+          <span class="stat-label">IPFS Flushes</span>
+        </div>
+        <div class="stat-box">
+          <span id="total-events" class="stat-number">-</span>
+          <span class="stat-label">Total Events</span>
+        </div>
+      </div>
+
+      <div class="chain-progress">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <span>Event Chain Progress</span>
+          <span id="chain-count">0 / 5</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+        </div>
+        <div class="progress-text">Events are flushed to IPFS when threshold is reached</div>
+      </div>
+    </section>
+
+    <div class="console-layout">
+      <!-- Configuration Panel -->
+      <section class="console-panel">
+        <div class="panel-header">
+          <h2>Configuration</h2>
+        </div>
+
+        <div class="config-item">
+          <span class="config-label">Flush Threshold</span>
+          <span class="config-value" id="config-threshold">-</span>
+        </div>
+
+        <div class="config-item">
+          <span class="config-label">Factory URL</span>
+          <span class="config-value" id="config-factory">-</span>
+        </div>
+
+        <div class="config-item">
+          <span class="config-label">IPFS API</span>
+          <span class="config-value" id="config-ipfs">-</span>
+        </div>
+
+        <div class="config-item">
+          <span class="config-label">IPFS Gateway</span>
+          <span class="config-value" id="config-gateway">-</span>
+        </div>
+
+        <div class="config-item">
+          <span class="config-label">Last Hash</span>
+          <span class="config-value mono" id="config-hash">-</span>
+        </div>
+      </section>
+
+      <!-- Campaigns Panel -->
+      <section class="console-panel">
+        <div class="panel-header">
+          <h2>Active Campaigns</h2>
+          <button class="btn" onclick="loadCampaigns()">Refresh</button>
+        </div>
+
+        <div id="campaigns-list"></div>
+      </section>
+    </div>
+
+    <!-- History Panel -->
+    <section class="console-panel full-width">
+      <div class="panel-header">
+        <h2>Flush History</h2>
+      </div>
+
+      <div id="history-container"></div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="footer-bottom">
+        <p>&copy; 2025 GeistM. Powered by Epistery.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Load initial data
+    async function loadData() {
+      try {
+        // Load status
+        const statusResponse = await fetch('/agent/geistm/adnet-agent/status');
+        const status = await statusResponse.json();
+
+        document.getElementById('domain-display').textContent = status.domain;
+        document.getElementById('pending-events').textContent = status.chain?.length || 0;
+        document.getElementById('total-views').textContent = status.stats?.totalViews || 0;
+        document.getElementById('total-clicks').textContent = status.stats?.totalClicks || 0;
+        document.getElementById('flush-count').textContent = status.stats?.flushCount || 0;
+        document.getElementById('total-events').textContent = status.stats?.totalEvents || 0;
+
+        // Update progress bar
+        const pending = status.chain?.length || 0;
+        const threshold = status.chain?.threshold || 5;
+        const percent = Math.min((pending / threshold) * 100, 100);
+        document.getElementById('progress-fill').style.width = `${percent}%`;
+        document.getElementById('chain-count').textContent = `${pending} / ${threshold}`;
+
+        // Update config
+        document.getElementById('config-threshold').textContent = status.chain?.threshold || '-';
+        document.getElementById('config-factory').textContent = status.factory?.url || '-';
+        document.getElementById('config-ipfs').textContent = status.ipfs?.url || '-';
+        document.getElementById('config-gateway').textContent = status.ipfs?.gateway || '-';
+        document.getElementById('config-hash').textContent = status.chain?.lastHash?.substring(0, 16) + '...' || '-';
+
+        // Load history
+        await loadHistory();
+
+        // Load campaigns
+        await loadCampaigns();
+
+      } catch (error) {
+        console.error('[admin] Failed to load data:', error);
+        showMessage('Failed to load data: ' + error.message, 'error');
+      }
+    }
+
+    // Load flush history
+    async function loadHistory() {
+      try {
+        const response = await fetch('/agent/geistm/adnet-agent/history');
+        const data = await response.json();
+
+        const container = document.getElementById('history-container');
+
+        if (!data.flushes || data.flushes.length === 0) {
+          container.innerHTML = '<div class="empty-state">No flush history yet</div>';
+          return;
+        }
+
+        // Show most recent first
+        const flushes = [...data.flushes].reverse().slice(0, 20);
+
+        container.innerHTML = `
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Campaign</th>
+                <th>Events</th>
+                <th>Views</th>
+                <th>Clicks</th>
+                <th>IPFS</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${flushes.map(flush => `
+                <tr>
+                  <td>${new Date(flush.timestamp).toLocaleString()}</td>
+                  <td class="mono">${flush.campaignId?.substring(0, 20)}...</td>
+                  <td>${flush.eventCount}</td>
+                  <td>${flush.views}</td>
+                  <td>${flush.clicks}</td>
+                  <td>
+                    ${flush.ipfsHash ? 
+                      `<a href="${flush.ipfsUrl}" target="_blank" class="ipfs-link mono">${flush.ipfsHash.substring(0, 12)}...</a>` : 
+                      '-'
+                    }
+                  </td>
+                  <td>
+                    <span class="badge ${flush.success ? 'badge-success' : 'badge-danger'}">
+                      ${flush.success ? 'Success' : 'Failed'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (error) {
+        console.error('[admin] Failed to load history:', error);
+      }
+    }
+
+    // Load campaigns
+    async function loadCampaigns() {
+      try {
+        const response = await fetch('/agent/geistm/adnet-agent/campaigns');
+        const data = await response.json();
+
+        const container = document.getElementById('campaigns-list');
+
+        if (!data.campaigns || data.campaigns.length === 0) {
+          container.innerHTML = '<div class="empty-state">No active campaigns</div>';
+          return;
+        }
+
+        container.innerHTML = data.campaigns.map(campaign => `
+          <div class="config-item">
+            <div>
+              <div style="font-weight: 500;">${campaign.brand || 'Unknown Brand'}</div>
+              <div class="mono" style="font-size: 11px;">${campaign.id}</div>
+            </div>
+            <div style="text-align: right;">
+              <div>${campaign.promotions?.length || 0} promotions</div>
+              <div style="font-size: 11px; color: var(--text-color-quiet);">${campaign.active ? 'Active' : 'Inactive'}</div>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('[admin] Failed to load campaigns:', error);
+        document.getElementById('campaigns-list').innerHTML = '<div class="empty-state">Failed to load campaigns</div>';
+      }
+    }
+
+    // Manual flush
+    async function manualFlush() {
+      if (!confirm('Flush all pending events to IPFS now?')) return;
+
+      try {
+        const response = await fetch('/agent/geistm/adnet-agent/flush', {
+          method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+          showMessage(`Flushed ${data.results?.length || 0} campaign batches to IPFS`, 'success');
+          await loadData();
+        } else {
+          showMessage('Flush failed: ' + (data.error || 'Unknown error'), 'error');
+        }
+      } catch (error) {
+        console.error('[admin] Flush error:', error);
+        showMessage('Flush failed: ' + error.message, 'error');
+      }
+    }
+
+    // Show message
+    function showMessage(text, type = 'info') {
+      const container = document.getElementById('message-container');
+      const message = document.createElement('div');
+      message.className = `message ${type}`;
+      message.textContent = text;
+      container.appendChild(message);
+
+      setTimeout(() => {
+        message.remove();
+      }, 5000);
+    }
+
+    // Initialize
+    loadData();
+
+    // Refresh every 30 seconds
+    setInterval(loadData, 30000);
+  </script>
+</body>
+</html>
