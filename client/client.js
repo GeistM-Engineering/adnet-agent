@@ -80,15 +80,16 @@
     async getCampaignDetails(campaignId) {
       try {
         const response = await fetch(`${AGENT_BASE}/campaigns/${campaignId}`);
-        const data = await response.json();
-
-        if (data.status === 'success') {
-          return data.campaign;
+        if (!response.ok) {
+          console.error('[Adnet] Failed to fetch campaign details:', response.status);
+          return null;
         }
+        const data = await response.json();
+        return data;
       } catch (error) {
         console.error('[Adnet] Failed to fetch campaign details:', error);
+        return null;
       }
-      return null;
     }
 
     populateAdSlots() {
