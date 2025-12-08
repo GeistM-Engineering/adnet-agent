@@ -209,6 +209,31 @@ export default class AdnetAgent {
       res.json({ status: 'success', campaigns, count: campaigns.length });
     });
 
+    // Get individual campaign details
+    router.get('/campaigns/:campaignId', async (req, res) => {
+      const { campaignId } = req.params;
+      console.log(`[adnet] Fetching campaign details for: ${campaignId}`);
+      
+      // Check cache first
+      const cached = this.campaignsCache.find(c => c.id === campaignId);
+      if (cached) {
+        return res.json(cached);
+      }
+      
+      // Fetch from factory
+      try {
+        const response = await fetch(`${this.factoryUrl}/api/campaign/${campaignId}`);
+        if (!response.ok) {
+          return res.status(response.status).json({ error: 'Campaign not found' });
+        }
+        const data = await response.json();
+        res.json(data.contract || data);
+      } catch (error) {
+        console.error(`[adnet] Failed to fetch campaign ${campaignId}:`, error.message);
+        res.status(500).json({ error: 'Failed to fetch campaign details' });
+      }
+    });
+
     // Record event (view or click)
     router.post('/record', async (req, res) => {
       try {
