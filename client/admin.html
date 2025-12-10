@@ -338,6 +338,16 @@
       </section>
     </div>
 
+    <!-- Contract Reports Panel -->
+    <section class="console-panel full-width">
+      <div class="panel-header">
+        <h2>Contract Reports</h2>
+        <button class="btn" onclick="loadContractReports()">Refresh</button>
+      </div>
+
+      <div id="contract-reports-container"></div>
+    </section>
+
     <!-- History Panel -->
     <section class="console-panel full-width">
       <div class="panel-header">
@@ -390,6 +400,9 @@
 
         // Load campaigns
         await loadCampaigns();
+
+        // Load contract reports
+        await loadContractReports();
 
       } catch (error) {
         console.error('[admin] Failed to load data:', error);
@@ -483,6 +496,102 @@
       } catch (error) {
         console.error('[admin] Failed to load campaigns:', error);
         document.getElementById('campaigns-list').innerHTML = '<div class="empty-state">Failed to load campaigns</div>';
+      }
+    }
+
+    // Load contract reports
+    async function loadContractReports() {
+      try {
+        const campaignsResponse = await fetch('/agent/geistm/adnet-agent/campaigns');
+        const campaignsData = await campaignsResponse.json();
+
+        const container = document.getElementById('contract-reports-container');
+
+        if (!campaignsData.campaigns || campaignsData.campaigns.length === 0) {
+          container.innerHTML = '<div class="empty-state">No campaigns to report on</div>';
+          return;
+        }
+
+        // Fetch reports for all campaigns
+        const reports = await Promise.all(
+          campaignsData.campaigns.map(async (campaign) => {
+            try {
+              const response = await fetch(`/agent/geistm/adnet-agent/campaigns/${campaign.id}/report`);
+              if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                return {
+                  campaign,
+                  error: error.error || 'Failed to fetch report',
+                  status: response.status
+                };
+              }
+              const data = await response.json();
+              return { campaign, report: data };
+            } catch (error) {
+              console.error(`Failed to load report for ${campaign.id}:`, error);
+              return { campaign, error: error.message };
+            }
+          })
+        );
+
+        container.innerHTML = `
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Campaign</th>
+                <th>Brand</th>
+                <th>Total Events</th>
+                <th>Total Spent</th>
+                <th>Remaining Budget</th>
+                <th>Promotions</th>
+                <th>Status</th>
+                <th>Contract</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reports.map(({ campaign, report, error }) => {
+                if (error) {
+                  return `
+                    <tr>
+                      <td class="mono" style="font-size: 11px;">${campaign.id.substring(0, 20)}...</td>
+                      <td>${campaign.brand || 'Unknown'}</td>
+                      <td colspan="6" style="color: var(--text-color-quiet); font-style: italic;">
+                        ${error}
+                      </td>
+                    </tr>
+                  `;
+                }
+
+                const stats = report.report?.stats || {};
+                const contract = report.report?.contract || {};
+                return `
+                  <tr>
+                    <td class="mono" style="font-size: 11px;">${campaign.id.substring(0, 20)}...</td>
+                    <td>${contract.brand || campaign.brand || 'Unknown'}</td>
+                    <td>${stats.totalEvents || 0}</td>
+                    <td>${stats.totalSpent || '0'} ETH</td>
+                    <td>${stats.remainingBudget || '0'} ETH</td>
+                    <td>${stats.promotionCount || contract.promotionCount || 0}</td>
+                    <td>
+                      <span class="badge ${stats.active ? 'badge-success' : 'badge-danger'}">
+                        ${stats.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td class="mono" style="font-size: 10px;">
+                      ${contract.contractAddress ?
+                        `${contract.contractAddress.substring(0, 6)}...${contract.contractAddress.substring(38)}` :
+                        'Not deployed'
+                      }
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (error) {
+        console.error('[admin] Failed to load contract reports:', error);
+        document.getElementById('contract-reports-container').innerHTML = '<div class="empty-state">Failed to load contract reports</div>';
       }
     }
 

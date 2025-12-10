@@ -496,6 +496,31 @@ export default class AdnetAgent {
       }
     });
 
+    // Get contract report from factory
+    router.get('/campaigns/:campaignId/report', async (req, res) => {
+      const { campaignId } = req.params;
+      console.log(`[adnet] Fetching contract report for: ${campaignId}`);
+
+      try {
+        const response = await fetch(`${this.factoryUrl}/api/campaign/${campaignId}/report`, {
+          headers: {
+            'Authorization': req.headers.authorization || ''
+          }
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: 'Failed to fetch report' }));
+          return res.status(response.status).json(error);
+        }
+
+        const data = await response.json();
+        res.json(data);
+      } catch (error) {
+        console.error(`[adnet] Failed to fetch report for ${campaignId}:`, error.message);
+        res.status(500).json({ error: 'Failed to fetch campaign report' });
+      }
+    });
+
     // Record event (view or click)
     router.post('/record', async (req, res) => {
       try {
