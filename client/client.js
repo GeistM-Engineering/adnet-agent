@@ -18,7 +18,7 @@
     ipfsUrl: 'https://rootz.digital/api/v0',
     ipfsGateway: 'https://rootz.digital',
     storageKey: 'adnet-agent-state',
-    ethersUrl: 'https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js'
+    ethersUrl: 'https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js'
   };
 
   // Contract ABI for submitBatch function
