@@ -3,677 +3,468 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Adnet Console - Admin</title>
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>Adnet Agent Admin</title>
+  <link rel="stylesheet" href="/style/static.css">
   <style>
-    * {
+    .admin-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: var(--spacer3);
+    }
+
+    .console-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacer3);
+      margin-bottom: var(--spacer3);
+    }
+
+    .console-panel {
+      background: var(--bg-color-quiet-d);
+      border: 1px solid var(--page-border);
+      border-radius: 8px;
+      padding: var(--spacer2);
+    }
+
+    .console-panel.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacer2);
+      padding-bottom: var(--spacer);
+      border-bottom: 2px solid var(--primary);
+    }
+
+    .panel-header h2 {
       margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+      color: var(--primary);
+      font-size: 1.25rem;
     }
 
-    :root {
-      --gcp-blue: #1a73e8;
-      --gcp-blue-hover: #1557b0;
-      --gcp-dark: #202124;
-      --gcp-gray-900: #3c4043;
-      --gcp-gray-700: #5f6368;
-      --gcp-gray-500: #80868b;
-      --gcp-gray-300: #dadce0;
-      --gcp-gray-100: #f1f3f4;
-      --gcp-gray-50: #f8f9fa;
-      --gcp-white: #ffffff;
-      --gcp-green: #34a853;
-      --gcp-yellow: #fbbc04;
-      --gcp-red: #ea4335;
-      --sidebar-width: 256px;
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: var(--spacer);
+      margin-bottom: var(--spacer2);
     }
 
-    body {
-      font-family: 'Roboto', sans-serif;
-      background: var(--gcp-gray-100);
-      color: var(--gcp-gray-900);
-      min-height: 100vh;
-      display: flex;
+    .stat-box {
+      background: var(--bg-color);
+      padding: var(--spacer2);
+      border-radius: 6px;
+      text-align: center;
+      border: 1px solid var(--page-border);
     }
 
-    /* Sidebar */
-    .sidebar {
-      width: var(--sidebar-width);
-      background: var(--gcp-white);
-      border-right: 1px solid var(--gcp-gray-300);
-      height: 100vh;
-      position: fixed;
-      left: 0;
-      top: 0;
-      display: flex;
-      flex-direction: column;
+    .stat-number {
+      display: block;
+      font-size: 2rem;
+      font-weight: bold;
+      color: var(--primary);
+      margin-bottom: var(--spacerhalf);
     }
 
-    .sidebar-header {
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--gcp-gray-300);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .sidebar-logo {
-      width: 32px;
-      height: 32px;
-      background: linear-gradient(135deg, var(--gcp-blue) 0%, #4285f4 100%);
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: 600;
-      font-size: 14px;
-    }
-
-    .sidebar-title {
-      font-family: 'Google Sans', sans-serif;
-      font-size: 18px;
-      font-weight: 500;
-      color: var(--gcp-gray-900);
-    }
-
-    .sidebar-nav {
-      flex: 1;
-      padding: 8px 0;
-      overflow-y: auto;
-    }
-
-    .nav-section {
-      padding: 8px 0;
-    }
-
-    .nav-section-title {
-      padding: 8px 24px;
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--gcp-gray-500);
+    .stat-label {
+      display: block;
+      font-size: 0.875rem;
+      color: var(--text-color-quiet);
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
 
-    .nav-item {
-      display: flex;
-      align-items: center;
-      padding: 10px 24px;
-      color: var(--gcp-gray-700);
-      text-decoration: none;
-      font-size: 14px;
-      transition: background 0.15s;
-      cursor: pointer;
+    .chain-progress {
+      background: var(--bg-color);
+      padding: var(--spacer2);
+      border-radius: 6px;
+      border: 1px solid var(--page-border);
     }
 
-    .nav-item:hover {
-      background: var(--gcp-gray-100);
-    }
-
-    .nav-item.active {
-      background: #e8f0fe;
-      color: var(--gcp-blue);
-      font-weight: 500;
-    }
-
-    .nav-item svg {
-      width: 20px;
+    .progress-bar {
       height: 20px;
-      margin-right: 16px;
-      fill: currentColor;
-    }
-
-    /* Main Content */
-    .main-content {
-      margin-left: var(--sidebar-width);
-      flex: 1;
-      min-height: 100vh;
-    }
-
-    /* Top Header */
-    .top-header {
-      background: var(--gcp-white);
-      border-bottom: 1px solid var(--gcp-gray-300);
-      padding: 16px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .page-title {
-      font-family: 'Google Sans', sans-serif;
-      font-size: 22px;
-      font-weight: 400;
-      color: var(--gcp-gray-900);
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
+      background: #e9ecef;
       border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: var(--spacer);
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #28a745, #20c997);
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      text-align: center;
       font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.15s;
-      border: none;
-      font-family: 'Google Sans', sans-serif;
+      color: var(--text-color-quiet);
     }
 
-    .btn-primary {
-      background: var(--gcp-blue);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: var(--gcp-blue-hover);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    }
-
-    .btn-secondary {
-      background: var(--gcp-white);
-      color: var(--gcp-blue);
-      border: 1px solid var(--gcp-gray-300);
-    }
-
-    .btn-secondary:hover {
-      background: var(--gcp-gray-50);
-    }
-
-    /* Content Area */
-    .content-area {
-      padding: 24px;
-    }
-
-    /* Metric Cards */
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-
-    .metric-card {
-      background: var(--gcp-white);
-      border-radius: 8px;
-      padding: 20px;
-      border: 1px solid var(--gcp-gray-300);
-    }
-
-    .metric-label {
-      font-size: 12px;
-      color: var(--gcp-gray-700);
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-
-    .metric-value {
-      font-family: 'Google Sans', sans-serif;
-      font-size: 32px;
-      font-weight: 400;
-      color: var(--gcp-gray-900);
-    }
-
-    .metric-change {
-      font-size: 12px;
-      margin-top: 4px;
-    }
-
-    .metric-change.positive {
-      color: var(--gcp-green);
-    }
-
-    .metric-change.negative {
-      color: var(--gcp-red);
-    }
-
-    /* Cards */
-    .card {
-      background: var(--gcp-white);
-      border-radius: 8px;
-      border: 1px solid var(--gcp-gray-300);
-      margin-bottom: 24px;
-    }
-
-    .card-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--gcp-gray-300);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .card-title {
-      font-family: 'Google Sans', sans-serif;
-      font-size: 16px;
-      font-weight: 500;
-      color: var(--gcp-gray-900);
-    }
-
-    .card-body {
-      padding: 20px;
-    }
-
-    /* Charts */
-    .chart-container {
-      position: relative;
-      height: 200px;
-    }
-
-    /* Tables */
-    .data-table {
+    .history-table {
       width: 100%;
       border-collapse: collapse;
     }
 
-    .data-table th {
+    .history-table th {
+      background: var(--bg-color-d);
+      padding: var(--spacer);
       text-align: left;
-      padding: 12px 16px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--gcp-gray-700);
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-      border-bottom: 1px solid var(--gcp-gray-300);
-      background: var(--gcp-gray-50);
+      font-weight: 600;
+      color: var(--text-color);
+      border-bottom: 2px solid var(--page-border);
+      font-size: 0.875rem;
     }
 
-    .data-table td {
-      padding: 12px 16px;
-      font-size: 14px;
-      border-bottom: 1px solid var(--gcp-gray-300);
+    .history-table td {
+      padding: var(--spacer);
+      border-bottom: 1px solid var(--page-border);
+      font-size: 0.875rem;
     }
 
-    .data-table tr:hover {
-      background: var(--gcp-gray-50);
+    .history-table tr:hover {
+      background: var(--bg-color-d);
     }
 
-    .data-table tr:last-child td {
-      border-bottom: none;
-    }
-
-    /* Status Badges */
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-
-    .status-badge.success {
-      background: #e6f4ea;
-      color: var(--gcp-green);
-    }
-
-    .status-badge.warning {
-      background: #fef7e0;
-      color: #b06000;
-    }
-
-    .status-badge.error {
-      background: #fce8e6;
-      color: var(--gcp-red);
-    }
-
-    .status-badge.info {
-      background: #e8f0fe;
-      color: var(--gcp-blue);
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      margin-right: 6px;
-    }
-
-    .status-dot.success { background: var(--gcp-green); }
-    .status-dot.warning { background: var(--gcp-yellow); }
-    .status-dot.error { background: var(--gcp-red); }
-
-    /* Tabs */
-    .tabs {
-      display: flex;
-      border-bottom: 1px solid var(--gcp-gray-300);
-      margin-bottom: 20px;
-    }
-
-    .tab {
-      padding: 12px 24px;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--gcp-gray-700);
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: all 0.15s;
-      background: none;
-      border-top: none;
-      border-left: none;
-      border-right: none;
-    }
-
-    .tab:hover {
-      color: var(--gcp-blue);
-    }
-
-    .tab.active {
-      color: var(--gcp-blue);
-      border-bottom-color: var(--gcp-blue);
-    }
-
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
-
-    /* Mono text */
     .mono {
-      font-family: 'Roboto Mono', monospace;
-      font-size: 13px;
-      color: var(--gcp-gray-700);
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: var(--text-color-quiet);
     }
 
-    /* Empty state */
-    .empty-state {
-      text-align: center;
-      padding: 48px 24px;
-      color: var(--gcp-gray-500);
-    }
-
-    .empty-state h3 {
-      font-family: 'Google Sans', sans-serif;
-      font-size: 16px;
-      font-weight: 500;
-      margin-bottom: 8px;
-      color: var(--gcp-gray-700);
-    }
-
-    /* Link styles */
-    a.table-link {
-      color: var(--gcp-blue);
+    .ipfs-link {
+      color: var(--action-color);
       text-decoration: none;
     }
 
-    a.table-link:hover {
+    .ipfs-link:hover {
       text-decoration: underline;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--action-color);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--action-color-hilite);
+      transform: translateY(-1px);
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    .config-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--spacer);
+      background: var(--bg-color);
+      border-radius: 6px;
+      margin-bottom: var(--spacer);
+      border: 1px solid var(--page-border);
+    }
+
+    .config-label {
+      font-weight: 500;
+      color: var(--text-color);
+    }
+
+    .config-value {
+      font-family: 'Courier New', monospace;
+      color: var(--primary);
+      font-size: 0.875rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: var(--spacer3);
+      color: var(--text-color-quiet);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .badge-success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .badge-danger {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .message {
+      padding: var(--spacer);
+      border-radius: 6px;
+      margin-bottom: var(--spacer2);
+      border: 1px solid;
+    }
+
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border-color: #c3e6cb;
+    }
+
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border-color: #f5c6cb;
     }
   </style>
 </head>
 <body>
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-logo">A</div>
-      <span class="sidebar-title">Adnet Console</span>
-    </div>
-    <nav class="sidebar-nav">
-      <div class="nav-section">
-        <div class="nav-section-title">Overview</div>
-        <a href="admin" class="nav-item active">
-          <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
-          Dashboard
-        </a>
-      </div>
-      <div class="nav-section">
-        <div class="nav-section-title">Analytics</div>
-        <a href="sponsor" class="nav-item">
-          <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
-          Campaigns
-        </a>
-        <a href="publisher" class="nav-item">
-          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/></svg>
-          Publishers
-        </a>
-      </div>
-      <div class="nav-section">
-        <div class="nav-section-title">Settings</div>
-        <a href="#" class="nav-item" onclick="loadData()">
-          <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-          Refresh Data
-        </a>
+  <header>
+    <nav class="container">
+      <a href="/" class="logo">
+        <span class="logo-text">📊 Adnet Agent Admin</span>
+      </a>
+      <div style="display: flex; gap: var(--spacer); align-items: center;">
+        <span id="domain-display" style="color: var(--text-color-quiet); font-size: 14px;"></span>
+        <button class="btn btn-primary" onclick="manualFlush()">Flush Events</button>
       </div>
     </nav>
-  </aside>
+  </header>
 
-  <!-- Main Content -->
-  <main class="main-content">
-    <header class="top-header">
-      <h1 class="page-title">Admin Dashboard</h1>
-    </header>
+  <main class="admin-container">
+    <div id="message-container"></div>
 
-    <div class="content-area">
-      <!-- Metrics - Compact Row -->
-      <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr);">
-        <div class="metric-card">
-          <div class="metric-label">Campaigns</div>
-          <div class="metric-value" id="total-campaigns">-</div>
+    <!-- Stats Panel -->
+    <section class="console-panel full-width">
+      <div class="panel-header">
+        <h2>Overview</h2>
+      </div>
+      <div class="stats">
+        <div class="stat-box">
+          <span id="pending-events" class="stat-number">-</span>
+          <span class="stat-label">Pending Events</span>
         </div>
-        <div class="metric-card">
-          <div class="metric-label">Batches</div>
-          <div class="metric-value" id="total-batches">-</div>
+        <div class="stat-box">
+          <span id="total-views" class="stat-number">-</span>
+          <span class="stat-label">Total Views</span>
         </div>
-        <div class="metric-card">
-          <div class="metric-label">Impressions</div>
-          <div class="metric-value" id="total-impressions">-</div>
+        <div class="stat-box">
+          <span id="total-clicks" class="stat-number">-</span>
+          <span class="stat-label">Total Clicks</span>
         </div>
-        <div class="metric-card">
-          <div class="metric-label">Clicks</div>
-          <div class="metric-value" id="total-clicks">-</div>
+        <div class="stat-box">
+          <span id="flush-count" class="stat-number">-</span>
+          <span class="stat-label">IPFS Flushes</span>
+        </div>
+        <div class="stat-box">
+          <span id="total-events" class="stat-number">-</span>
+          <span class="stat-label">Total Events</span>
         </div>
       </div>
 
-      <!-- Activity Chart -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">Activity Over Time</span>
-          <div style="display: flex; align-items: center; gap: 16px; font-size: 13px;">
-            <span class="status-badge" id="db-status" style="font-size: 11px;">
-              <span class="status-dot success"></span>DB
-            </span>
-            <span class="status-badge" id="watcher-status" style="font-size: 11px;">
-              <span class="status-dot success"></span>Watcher
-            </span>
-            <span class="mono" style="color: var(--gcp-gray-500);" id="factory-url">-</span>
-          </div>
+      <div class="chain-progress">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <span>Event Chain Progress</span>
+          <span id="chain-count">0 / 5</span>
         </div>
-        <div class="card-body">
-          <div class="chart-container" style="height: 200px;">
-            <canvas id="activityChart"></canvas>
-          </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
         </div>
+        <div class="progress-text">Events are flushed to IPFS when threshold is reached</div>
       </div>
+    </section>
 
-      <!-- Tabbed Data -->
-      <div class="card">
-        <div class="card-header">
-          <div class="tabs" style="border-bottom: none; margin-bottom: 0;">
-            <button class="tab active" onclick="showTab('campaigns')">Campaigns</button>
-            <button class="tab" onclick="showTab('batches')">Batches</button>
-            <button class="tab" onclick="showTab('events')">Events</button>
-          </div>
+    <div class="console-layout">
+      <!-- Configuration Panel -->
+      <section class="console-panel">
+        <div class="panel-header">
+          <h2>Configuration</h2>
         </div>
-        <div class="card-body" style="padding: 0;">
-          <!-- Campaigns Tab -->
-          <div id="tab-campaigns" class="tab-content active">
-            <div id="campaigns-container"></div>
-          </div>
 
-          <!-- Batches Tab -->
-          <div id="tab-batches" class="tab-content">
-            <div id="batches-container"></div>
-          </div>
-
-          <!-- Events Tab -->
-          <div id="tab-events" class="tab-content">
-            <div style="padding: 16px; border-bottom: 1px solid var(--gcp-gray-300); display: flex; gap: 12px;">
-              <input type="text" id="event-filter-campaign" placeholder="Filter by Campaign ID" style="padding: 8px 12px; border: 1px solid var(--gcp-gray-300); border-radius: 4px; font-size: 14px; width: 200px;">
-              <select id="event-filter-type" style="padding: 8px 12px; border: 1px solid var(--gcp-gray-300); border-radius: 4px; font-size: 14px;">
-                <option value="">All Types</option>
-                <option value="impression">Impressions</option>
-                <option value="click">Clicks</option>
-              </select>
-              <button class="btn btn-primary" onclick="loadEvents()">Apply Filter</button>
-            </div>
-            <div id="events-container"></div>
-          </div>
+        <div class="config-item">
+          <span class="config-label">Flush Threshold</span>
+          <span class="config-value" id="config-threshold">-</span>
         </div>
-      </div>
+
+        <div class="config-item">
+          <span class="config-label">Factory URL</span>
+          <span class="config-value" id="config-factory">-</span>
+        </div>
+
+        <div class="config-item">
+          <span class="config-label">IPFS API</span>
+          <span class="config-value" id="config-ipfs">-</span>
+        </div>
+
+        <div class="config-item">
+          <span class="config-label">IPFS Gateway</span>
+          <span class="config-value" id="config-gateway">-</span>
+        </div>
+
+        <div class="config-item">
+          <span class="config-label">Last Hash</span>
+          <span class="config-value mono" id="config-hash">-</span>
+        </div>
+      </section>
+
+      <!-- Campaigns Panel -->
+      <section class="console-panel">
+        <div class="panel-header">
+          <h2>Active Campaigns</h2>
+          <button class="btn" onclick="loadCampaigns()">Refresh</button>
+        </div>
+
+        <div id="campaigns-list"></div>
+      </section>
     </div>
+
+    <!-- Contract Reports Panel -->
+    <section class="console-panel full-width">
+      <div class="panel-header">
+        <h2>Contract Reports</h2>
+        <button class="btn" onclick="loadContractReports()">Refresh</button>
+      </div>
+
+      <div id="contract-reports-container"></div>
+    </section>
+
+    <!-- History Panel -->
+    <section class="console-panel full-width">
+      <div class="panel-header">
+        <h2>Flush History</h2>
+      </div>
+
+      <div id="history-container"></div>
+    </section>
   </main>
 
+  <footer>
+    <div class="container">
+      <div class="footer-bottom">
+        <p>&copy; 2025 GeistM. Powered by Epistery.</p>
+      </div>
+    </div>
+  </footer>
+
   <script>
-    const FACTORY_URL = 'https://adnet.geistm.com';
-    let activityChart;
-    let allBatches = [];
-
-    // Initialize chart
-    function initCharts() {
-      const activityCtx = document.getElementById('activityChart').getContext('2d');
-      activityChart = new Chart(activityCtx, {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: 'Impressions',
-              data: [],
-              borderColor: '#1a73e8',
-              backgroundColor: 'rgba(26, 115, 232, 0.1)',
-              fill: true,
-              tension: 0.4
-            },
-            {
-              label: 'Clicks',
-              data: [],
-              borderColor: '#34a853',
-              backgroundColor: 'rgba(52, 168, 83, 0.1)',
-              fill: true,
-              tension: 0.4
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'top',
-              labels: { usePointStyle: true, padding: 12 }
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              grid: { color: '#f1f3f4' }
-            },
-            x: {
-              grid: { display: false }
-            }
-          }
-        }
-      });
-    }
-
-    // Update chart with data
-    function updateCharts(batches) {
-      const dailyStats = {};
-      let totalImpressions = 0, totalClicks = 0;
-
-      batches.forEach(b => {
-        const date = new Date(b.blockTimestamp).toISOString().split('T')[0];
-        if (!dailyStats[date]) {
-          dailyStats[date] = { impressions: 0, clicks: 0 };
-        }
-        dailyStats[date].impressions += b.impressions || 0;
-        dailyStats[date].clicks += b.clicks || 0;
-        totalImpressions += b.impressions || 0;
-        totalClicks += b.clicks || 0;
-      });
-
-      const sortedDays = Object.keys(dailyStats).sort().slice(-14);
-
-      activityChart.data.labels = sortedDays.map(d => {
-        const date = new Date(d);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      });
-      activityChart.data.datasets[0].data = sortedDays.map(d => dailyStats[d].impressions);
-      activityChart.data.datasets[1].data = sortedDays.map(d => dailyStats[d].clicks);
-      activityChart.update();
-
-      document.getElementById('total-impressions').textContent = formatNumber(totalImpressions);
-      document.getElementById('total-clicks').textContent = formatNumber(totalClicks);
-    }
-
-    // Switch tabs
-    function showTab(tab) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
-      document.getElementById(`tab-${tab}`).classList.add('active');
-
-      if (tab === 'batches') loadBatches();
-      if (tab === 'events') loadEvents();
-    }
-
-    // Load all data
+    // Load initial data
     async function loadData() {
       try {
-        const agentResponse = await fetch('/agent/geistm/adnet-agent/status');
-        const agentStatus = await agentResponse.json();
-        document.getElementById('factory-url').textContent = agentStatus.factory?.url || '-';
+        // Load status
+        const statusResponse = await fetch('/agent/geistm/adnet-agent/status');
+        const status = await statusResponse.json();
 
+        document.getElementById('domain-display').textContent = status.domain;
+        document.getElementById('pending-events').textContent = status.chain?.length || 0;
+        document.getElementById('total-views').textContent = status.stats?.totalViews || 0;
+        document.getElementById('total-clicks').textContent = status.stats?.totalClicks || 0;
+        document.getElementById('flush-count').textContent = status.stats?.flushCount || 0;
+        document.getElementById('total-events').textContent = status.stats?.totalEvents || 0;
+
+        // Update progress bar
+        const pending = status.chain?.length || 0;
+        const threshold = status.chain?.threshold || 5;
+        const percent = Math.min((pending / threshold) * 100, 100);
+        document.getElementById('progress-fill').style.width = `${percent}%`;
+        document.getElementById('chain-count').textContent = `${pending} / ${threshold}`;
+
+        // Update config
+        document.getElementById('config-threshold').textContent = status.chain?.threshold || '-';
+        document.getElementById('config-factory').textContent = status.factory?.url || '-';
+        document.getElementById('config-ipfs').textContent = status.ipfs?.url || '-';
+        document.getElementById('config-gateway').textContent = status.ipfs?.gateway || '-';
+        document.getElementById('config-hash').textContent = status.chain?.lastHash?.substring(0, 16) + '...' || '-';
+
+        // Load history
+        await loadHistory();
+
+        // Load campaigns
         await loadCampaigns();
 
-        try {
-          const adminResponse = await fetch(`${FACTORY_URL}/api/admin/status`, { credentials: 'include' });
-          if (adminResponse.ok) {
-            const adminData = await adminResponse.json();
-            updateStatusBadge('db-status', adminData.database === 'connected', 'DB');
-            updateStatusBadge('watcher-status', adminData.watcher?.running, 'Watcher');
-          }
+        // Load contract reports
+        await loadContractReports();
 
-          const batchesResponse = await fetch(`${FACTORY_URL}/api/admin/batches?limit=1000`, { credentials: 'include' });
-          if (batchesResponse.ok) {
-            const batchesData = await batchesResponse.json();
-            allBatches = batchesData.batches || [];
-            document.getElementById('total-batches').textContent = formatNumber(allBatches.length);
-            updateCharts(allBatches);
-          }
-        } catch (e) {
-          console.log('Factory admin data not available');
-        }
       } catch (error) {
-        console.error('Failed to load data:', error);
+        console.error('[admin] Failed to load data:', error);
+        showMessage('Failed to load data: ' + error.message, 'error');
       }
     }
 
-    function updateStatusBadge(id, isOk, label) {
-      const el = document.getElementById(id);
-      if (isOk) {
-        el.className = 'status-badge success';
-        el.innerHTML = `<span class="status-dot success"></span>${label}`;
-      } else {
-        el.className = 'status-badge warning';
-        el.innerHTML = `<span class="status-dot warning"></span>${label}`;
+    // Load flush history
+    async function loadHistory() {
+      try {
+        const response = await fetch('/agent/geistm/adnet-agent/history');
+        const data = await response.json();
+
+        const container = document.getElementById('history-container');
+
+        if (!data.flushes || data.flushes.length === 0) {
+          container.innerHTML = '<div class="empty-state">No flush history yet</div>';
+          return;
+        }
+
+        // Show most recent first
+        const flushes = [...data.flushes].reverse().slice(0, 20);
+
+        container.innerHTML = `
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Campaign</th>
+                <th>Events</th>
+                <th>Views</th>
+                <th>Clicks</th>
+                <th>IPFS</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${flushes.map(flush => `
+                <tr>
+                  <td>${new Date(flush.timestamp).toLocaleString()}</td>
+                  <td class="mono">${flush.campaignId?.substring(0, 20)}...</td>
+                  <td>${flush.eventCount}</td>
+                  <td>${flush.views}</td>
+                  <td>${flush.clicks}</td>
+                  <td>
+                    ${flush.ipfsHash ? 
+                      `<a href="${flush.ipfsUrl}" target="_blank" class="ipfs-link mono">${flush.ipfsHash.substring(0, 12)}...</a>` : 
+                      '-'
+                    }
+                  </td>
+                  <td>
+                    <span class="badge ${flush.success ? 'badge-success' : 'badge-danger'}">
+                      ${flush.success ? 'Success' : 'Failed'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (error) {
+        console.error('[admin] Failed to load history:', error);
       }
     }
 
@@ -682,172 +473,169 @@
       try {
         const response = await fetch('/agent/geistm/adnet-agent/campaigns');
         const data = await response.json();
-        const campaigns = data.campaigns || [];
 
-        document.getElementById('total-campaigns').textContent = campaigns.length;
+        const container = document.getElementById('campaigns-list');
 
-        const container = document.getElementById('campaigns-container');
-
-        if (campaigns.length === 0) {
-          container.innerHTML = '<div class="empty-state"><h3>No campaigns found</h3><p>Create a campaign to get started</p></div>';
+        if (!data.campaigns || data.campaigns.length === 0) {
+          container.innerHTML = '<div class="empty-state">No active campaigns</div>';
           return;
         }
 
+        container.innerHTML = data.campaigns.map(campaign => `
+          <div class="config-item">
+            <div>
+              <div style="font-weight: 500;">${campaign.brand || 'Unknown Brand'}</div>
+              <div class="mono" style="font-size: 11px;">${campaign.id}</div>
+            </div>
+            <div style="text-align: right;">
+              <div>${campaign.promotions?.length || 0} promotions</div>
+              <div style="font-size: 11px; color: var(--text-color-quiet);">${campaign.active ? 'Active' : 'Inactive'}</div>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('[admin] Failed to load campaigns:', error);
+        document.getElementById('campaigns-list').innerHTML = '<div class="empty-state">Failed to load campaigns</div>';
+      }
+    }
+
+    // Load contract reports
+    async function loadContractReports() {
+      try {
+        const campaignsResponse = await fetch('/agent/geistm/adnet-agent/campaigns');
+        const campaignsData = await campaignsResponse.json();
+
+        const container = document.getElementById('contract-reports-container');
+
+        if (!campaignsData.campaigns || campaignsData.campaigns.length === 0) {
+          container.innerHTML = '<div class="empty-state">No campaigns to report on</div>';
+          return;
+        }
+
+        // Fetch reports for all campaigns
+        const reports = await Promise.all(
+          campaignsData.campaigns.map(async (campaign) => {
+            try {
+              const response = await fetch(`/agent/geistm/adnet-agent/campaigns/${campaign.id}/report`);
+              if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                return {
+                  campaign,
+                  error: error.error || 'Failed to fetch report',
+                  status: response.status
+                };
+              }
+              const data = await response.json();
+              return { campaign, report: data };
+            } catch (error) {
+              console.error(`Failed to load report for ${campaign.id}:`, error);
+              return { campaign, error: error.message };
+            }
+          })
+        );
+
         container.innerHTML = `
-          <table class="data-table">
+          <table class="history-table">
             <thead>
               <tr>
-                <th>Campaign ID</th>
+                <th>Campaign</th>
                 <th>Brand</th>
+                <th>Total Events</th>
+                <th>Total Spent</th>
+                <th>Remaining Budget</th>
                 <th>Promotions</th>
-                <th>Contract</th>
                 <th>Status</th>
+                <th>Contract</th>
               </tr>
             </thead>
             <tbody>
-              ${campaigns.map(c => `
-                <tr>
-                  <td><a href="sponsor?campaign=${c.id}" class="table-link mono">${c.id?.substring(0, 24)}...</a></td>
-                  <td>${c.brand || 'Unknown'}</td>
-                  <td>${c.promotions?.length || 0}</td>
-                  <td class="mono">${c.contractAddress ? c.contractAddress.substring(0, 12) + '...' : 'Not deployed'}</td>
-                  <td>
-                    <span class="status-badge ${c.active ? 'success' : 'error'}">
-                      <span class="status-dot ${c.active ? 'success' : 'error'}"></span>
-                      ${c.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                </tr>
-              `).join('')}
+              ${reports.map(({ campaign, report, error }) => {
+                if (error) {
+                  return `
+                    <tr>
+                      <td class="mono" style="font-size: 11px;">${campaign.id.substring(0, 20)}...</td>
+                      <td>${campaign.brand || 'Unknown'}</td>
+                      <td colspan="6" style="color: var(--text-color-quiet); font-style: italic;">
+                        ${error}
+                      </td>
+                    </tr>
+                  `;
+                }
+
+                const stats = report.report?.stats || {};
+                const contract = report.report?.contract || {};
+                return `
+                  <tr>
+                    <td class="mono" style="font-size: 11px;">${campaign.id.substring(0, 20)}...</td>
+                    <td>${contract.brand || campaign.brand || 'Unknown'}</td>
+                    <td>${stats.totalEvents || 0}</td>
+                    <td>${stats.totalSpent || '0'} ETH</td>
+                    <td>${stats.remainingBudget || '0'} ETH</td>
+                    <td>${stats.promotionCount || contract.promotionCount || 0}</td>
+                    <td>
+                      <span class="badge ${stats.active ? 'badge-success' : 'badge-danger'}">
+                        ${stats.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td class="mono" style="font-size: 10px;">
+                      ${contract.contractAddress ?
+                        `${contract.contractAddress.substring(0, 6)}...${contract.contractAddress.substring(38)}` :
+                        'Not deployed'
+                      }
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
             </tbody>
           </table>
         `;
       } catch (error) {
-        console.error('Failed to load campaigns:', error);
+        console.error('[admin] Failed to load contract reports:', error);
+        document.getElementById('contract-reports-container').innerHTML = '<div class="empty-state">Failed to load contract reports</div>';
       }
     }
 
-    // Load batches
-    async function loadBatches() {
-      const container = document.getElementById('batches-container');
-      try {
-        const response = await fetch(`${FACTORY_URL}/api/admin/batches?limit=50`, { credentials: 'include' });
-
-        if (!response.ok) {
-          container.innerHTML = '<div class="empty-state"><h3>Authentication Required</h3><p>Connect your wallet to view batch data</p></div>';
-          return;
-        }
-
-        const data = await response.json();
-        const batches = data.batches || [];
-
-        if (batches.length === 0) {
-          container.innerHTML = '<div class="empty-state"><h3>No batches recorded</h3><p>Batches will appear here once events are submitted</p></div>';
-          return;
-        }
-
-        container.innerHTML = `
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>Campaign</th>
-                <th>Publisher</th>
-                <th>Impressions</th>
-                <th>Clicks</th>
-                <th>Reach</th>
-                <th>IPFS</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${batches.map(b => `
-                <tr>
-                  <td>${new Date(b.blockTimestamp).toLocaleString()}</td>
-                  <td class="mono">${b.campaignId?.substring(0, 16)}...</td>
-                  <td class="mono">${b.publisher?.substring(0, 12)}...</td>
-                  <td>${formatNumber(b.impressions || 0)}</td>
-                  <td>${formatNumber(b.clicks || 0)}</td>
-                  <td>${formatNumber(b.reach || 0)}</td>
-                  <td><a href="https://rootz.digital/ipfs/${b.ipfsCID}" target="_blank" class="table-link mono">${b.ipfsCID?.substring(0, 12)}...</a></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        `;
-      } catch (error) {
-        console.error('Failed to load batches:', error);
-      }
-    }
-
-    // Load events
-    async function loadEvents() {
-      const container = document.getElementById('events-container');
-      const campaignFilter = document.getElementById('event-filter-campaign').value;
-      const typeFilter = document.getElementById('event-filter-type').value;
-
-      let url = `${FACTORY_URL}/api/admin/events?limit=100`;
-      if (campaignFilter) url += `&campaignId=${campaignFilter}`;
-      if (typeFilter) url += `&type=${typeFilter}`;
+    // Manual flush
+    async function manualFlush() {
+      if (!confirm('Flush all pending events to IPFS now?')) return;
 
       try {
-        const response = await fetch(url, { credentials: 'include' });
-
-        if (!response.ok) {
-          container.innerHTML = '<div class="empty-state"><h3>Authentication Required</h3><p>Connect your wallet to view event data</p></div>';
-          return;
-        }
+        const response = await fetch('/agent/geistm/adnet-agent/flush', {
+          method: 'POST'
+        });
 
         const data = await response.json();
-        const events = data.events || [];
 
-        if (events.length === 0) {
-          container.innerHTML = '<div class="empty-state"><h3>No events found</h3><p>Events will appear here once batches are processed</p></div>';
-          return;
+        if (data.status === 'success') {
+          showMessage(`Flushed ${data.results?.length || 0} campaign batches to IPFS`, 'success');
+          await loadData();
+        } else {
+          showMessage('Flush failed: ' + (data.error || 'Unknown error'), 'error');
         }
-
-        container.innerHTML = `
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>Type</th>
-                <th>Campaign</th>
-                <th>Promotion</th>
-                <th>Publisher</th>
-                <th>User</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${events.map(e => `
-                <tr>
-                  <td>${new Date(e.timestamp).toLocaleString()}</td>
-                  <td>
-                    <span class="status-badge ${e.type === 'click' ? 'success' : 'info'}">
-                      ${e.type || '-'}
-                    </span>
-                  </td>
-                  <td class="mono">${e.campaignId?.substring(0, 12)}...</td>
-                  <td class="mono">${e.promotionId?.substring(0, 12)}...</td>
-                  <td class="mono">${e.publisher?.substring(0, 10)}...</td>
-                  <td class="mono">${e.userAddress?.substring(0, 10)}...</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        `;
       } catch (error) {
-        console.error('Failed to load events:', error);
+        console.error('[admin] Flush error:', error);
+        showMessage('Flush failed: ' + error.message, 'error');
       }
     }
 
-    function formatNumber(num) {
-      return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    // Show message
+    function showMessage(text, type = 'info') {
+      const container = document.getElementById('message-container');
+      const message = document.createElement('div');
+      message.className = `message ${type}`;
+      message.textContent = text;
+      container.appendChild(message);
+
+      setTimeout(() => {
+        message.remove();
+      }, 5000);
     }
 
     // Initialize
-    initCharts();
     loadData();
-    setInterval(loadData, 60000);
+
+    // Refresh every 30 seconds
+    setInterval(loadData, 30000);
   </script>
 </body>
 </html>
