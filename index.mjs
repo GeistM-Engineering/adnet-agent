@@ -3,6 +3,8 @@ import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { Config } from 'epistery';
+import blockchainService from './blockchain.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,10 +47,80 @@ export default class AdnetAgent {
     // Per-domain state (keyed by domain)
     this.domainStates = new Map();
 
+    // Blockchain initialization flag
+    this.blockchainInitialized = false;
+
     console.log('[adnet] Agent initialized');
     console.log('[adnet] Threshold:', this.threshold);
     console.log('[adnet] IPFS URL:', this.ipfsUrl);
     console.log('[adnet] Factory URL:', this.factoryUrl);
+  }
+
+  /**
+   * Initialize blockchain service from Epistery config
+   * Uses the publisher domain's wallet and provider from ~/.epistery/[domain]/config.ini
+   */
+  async initializeBlockchain(domain) {
+    if (this.blockchainInitialized) return;
+
+    try {
+      let blockchainConfig = null;
+
+      // Load config for the publisher's domain
+      if (domain) {
+        const domainConfig = new Config();
+        domainConfig.setPath(domain);
+        try {
+          domainConfig.load();
+
+          // Check for explicit blockchain section first
+          if (domainConfig.data?.blockchain?.rpcUrl && domainConfig.data?.blockchain?.privateKey) {
+            blockchainConfig = {
+              rpcUrl: domainConfig.data.blockchain.rpcUrl,
+              privateKey: domainConfig.data.blockchain.privateKey
+            };
+            console.log(`[adnet] Found blockchain config in ${domain}`);
+          }
+          // Fall back to domain's wallet and provider
+          else if (domainConfig.data?.provider?.rpc && domainConfig.data?.wallet?.privateKey) {
+            blockchainConfig = {
+              rpcUrl: domainConfig.data.provider.rpc,
+              privateKey: domainConfig.data.wallet.privateKey
+            };
+            console.log(`[adnet] Using ${domain} wallet for blockchain`);
+          }
+        } catch (e) {
+          console.log(`[adnet] No config for domain ${domain}`);
+        }
+      }
+
+      // Fall back to root config's default provider
+      if (!blockchainConfig) {
+        const rootConfig = new Config();
+        rootConfig.setPath('/');
+        try {
+          rootConfig.load();
+          const rpcUrl = rootConfig.data?.default?.provider?.rpc;
+          // Note: root config typically doesn't have a privateKey, need domain wallet
+          if (rpcUrl) {
+            console.log('[adnet] Found RPC in root config but no wallet - need domain config');
+          }
+        } catch (e) {
+          // Root config doesn't exist
+        }
+      }
+
+      if (blockchainConfig?.rpcUrl && blockchainConfig?.privateKey) {
+        await blockchainService.initialize(blockchainConfig);
+      } else {
+        console.log('[adnet] No blockchain config found, running without contract submission');
+      }
+
+      this.blockchainInitialized = true;
+    } catch (error) {
+      console.error('[adnet] Failed to load blockchain config:', error.message);
+      this.blockchainInitialized = true; // Don't retry
+    }
   }
 
   /**
@@ -322,6 +394,31 @@ export default class AdnetAgent {
         if (ipfsResult) {
           console.log(`[adnet] ${domain}: Campaign ${campaignId}: ${events.length} events (${views} views, ${clicks} clicks)`);
           console.log(`[adnet] ${domain}:   IPFS: ${ipfsResult.url}`);
+
+          // Submit batch directly to campaign contract (decentralized)
+          const campaign = this.campaignsCache.find(c => c.id === campaignId || c.campaignId === campaignId);
+          const contractAddress = campaign?.contractAddress;
+
+          if (contractAddress && blockchainService.isEnabled()) {
+            const txResult = await blockchainService.submitBatch(
+              contractAddress,
+              ipfsResult.hash,
+              views,
+              clicks,
+              events.length, // reach
+              state.lastHash
+            );
+
+            if (txResult) {
+              console.log(`[adnet] ${domain}:   Contract: tx ${txResult.txHash}`);
+              flushResult.txHash = txResult.txHash;
+              flushResult.blockNumber = txResult.blockNumber;
+            } else {
+              console.log(`[adnet] ${domain}:   Contract submission skipped or failed`);
+            }
+          } else if (!contractAddress) {
+            console.log(`[adnet] ${domain}:   No contract address for campaign ${campaignId}`);
+          }
         } else {
           console.log(`[adnet] ${domain}: Campaign ${campaignId}: ${events.length} events (IPFS unavailable)`);
         }
@@ -415,13 +512,20 @@ export default class AdnetAgent {
    */
   attach(router) {
     // Get epistery instance from app.locals and set domain per-request
-    router.use((req, res, next) => {
+    router.use(async (req, res, next) => {
+      // Store domain in request for domain-specific data access
+      req.publisherDomain = req.hostname || 'localhost';
+
       if (!this.epistery && req.app.locals.epistery) {
         this.epistery = req.app.locals.epistery;
         console.log('[adnet] Epistery instance attached');
       }
-      // Store domain in request for domain-specific data access
-      req.publisherDomain = req.hostname || 'localhost';
+
+      // Initialize blockchain service with domain config (only once)
+      if (!this.blockchainInitialized) {
+        await this.initializeBlockchain(req.publisherDomain);
+      }
+
       next();
     });
 
@@ -584,7 +688,24 @@ export default class AdnetAgent {
           totalClicks: history.totalClicks
         },
         factory: { url: this.factoryUrl },
-        ipfs: { url: this.ipfsUrl, gateway: this.ipfsGateway }
+        ipfs: { url: this.ipfsUrl, gateway: this.ipfsGateway },
+        blockchain: {
+          enabled: blockchainService.isEnabled(),
+          wallet: blockchainService.getWalletAddress()
+        }
+      });
+    });
+
+    // Debug endpoint to see epistery config
+    router.get('/debug/config', (req, res) => {
+      const ep = this.epistery;
+      res.json({
+        hasEpistery: !!ep,
+        episteryKeys: ep ? Object.keys(ep) : [],
+        domain: ep?.domain,
+        config: ep?.config,
+        configData: ep?.config?.data,
+        wallet: ep?.wallet || ep?.domain?.wallet
       });
     });
 
