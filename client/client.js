@@ -233,6 +233,29 @@
 
     async recordEvent(campaignId, promotionId, type) {
       try {
+        const timestamp = Date.now();
+        let signature = null;
+        let notabotScore = null;
+
+        // Sign the event if wallet is available (cryptographic proof of identity)
+        if (this.witness?.wallet && this.userAddress) {
+          try {
+            const message = `adnet:${campaignId}:${type}:${timestamp}`;
+            signature = await this.witness.wallet.sign(message, window.ethers);
+          } catch (signError) {
+            console.warn('[Adnet] Failed to sign event:', signError);
+          }
+        }
+
+        // Get notabot score if available (proof of human)
+        if (this.witness?.notabot) {
+          try {
+            notabotScore = this.witness.notabot.getScore();
+          } catch (notabotError) {
+            console.warn('[Adnet] Failed to get notabot score:', notabotError);
+          }
+        }
+
         const response = await fetch(`${AGENT_BASE}/record`, {
           method: 'POST',
           headers: {
@@ -242,14 +265,17 @@
             campaignId,
             promotionId,
             type,
-            userAddress: this.userAddress // User wallet address from Epistery
+            timestamp,
+            userAddress: this.userAddress,
+            signature,
+            notabotScore
           })
         });
 
         const data = await response.json();
 
         if (data.status === 'success') {
-          console.log(`[Adnet] ${type} event recorded:`, data.event);
+          console.log(`[Adnet] ${type} event recorded (verified: ${data.verified}, notabot: ${notabotScore?.points || 0})`);
           if (data.chainLength >= data.threshold) {
             console.log('[Adnet] Threshold reached, events will be posted to contract');
           }

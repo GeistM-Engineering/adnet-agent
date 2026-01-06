@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { ethers } from 'ethers';
 import { Config } from 'epistery';
 import blockchainService from './blockchain.mjs';
 
@@ -324,120 +325,77 @@ export default class AdnetAgent {
    */
   async flushEvents(domain) {
     const state = this.getDomainState(domain);
+    if (state.eventChain.length === 0) return [];
 
-    if (state.eventChain.length === 0) {
-      console.log(`[adnet] ${domain}: No events to flush`);
-      return [];
-    }
-
-    console.log(`[adnet] ${domain}: Flushing ${state.eventChain.length} events to IPFS`);
-
-    // Group events by campaign
     const eventsByCampaign = {};
     for (const event of state.eventChain) {
-      if (!eventsByCampaign[event.campaignId]) {
-        eventsByCampaign[event.campaignId] = [];
-      }
+      if (!eventsByCampaign[event.campaignId]) eventsByCampaign[event.campaignId] = [];
       eventsByCampaign[event.campaignId].push(event);
     }
 
     const results = [];
-
     for (const [campaignId, events] of Object.entries(eventsByCampaign)) {
       const views = events.filter(e => e.type === 'view').length;
       const clicks = events.filter(e => e.type === 'click').length;
 
-      // Create Data Wallet structure (same pattern as message-board)
+      // REACH LOGIC:
+      // Count unique VERIFIED wallet addresses with minimum notabot score.
+      // This provides proof of: 1) Real wallet (signature), 2) Likely human (notabot)
+      const MIN_NOTABOT_SCORE = 10; // Minimum points to count as verified human
+      const verifiedViewers = new Set();
+      let unverifiedViews = 0;
+      let lowNotabotViews = 0;
+
+      events.filter(e => e.type === 'view').forEach(e => {
+        if (e.verified && e.userAddress) {
+          if (e.notabotScore >= MIN_NOTABOT_SCORE) {
+            verifiedViewers.add(e.userAddress);
+          } else {
+            lowNotabotViews++;
+          }
+        } else {
+          unverifiedViews++;
+        }
+      });
+
+      const reach = verifiedViewers.size;
+      if (unverifiedViews > 0 || lowNotabotViews > 0) {
+        console.log(`[adnet] Reach: ${reach} verified humans. Excluded: ${unverifiedViews} unverified, ${lowNotabotViews} low notabot score`);
+      }
+
       const dataWallet = {
         type: 'adnet-event-batch',
-        version: '1.0.0',
         campaignId,
-        events: events.map(e => ({
-          type: e.type,
-          promotionId: e.promotionId,
-          userAddress: e.userAddress,
-          userVerified: e.userVerified,
-          timestamp: e.timestamp,
-          hash: e.hash,
-          previousHash: e.previousHash,
-          chainIndex: e.chainIndex
-        })),
-        summary: {
-          views,
-          clicks,
-          total: events.length
-        },
-        chain: {
-          lastHash: state.lastHash,
-          length: events.length
-        },
-        publisher: {
-          domain: domain,
-          address: this.epistery?.domain?.wallet?.address || null
-        },
-        factory: this.factoryUrl,
-        timestamp: new Date().toISOString()
+        summary: { views, clicks, reach },
+        publisher: { domain, address: this.epistery?.domain?.wallet?.address || null },
+        events: events,
+        lastHash: state.lastHash
       };
 
-      // Upload to IPFS
       try {
         const ipfsResult = await this.uploadToIPFS(dataWallet);
-        const flushResult = {
-          campaignId,
-          events,
-          success: !!ipfsResult,
-          ipfsHash: ipfsResult?.hash,
-          ipfsUrl: ipfsResult?.url,
-          error: ipfsResult ? null : 'IPFS unavailable'
-        };
-
         if (ipfsResult) {
-          console.log(`[adnet] ${domain}: Campaign ${campaignId}: ${events.length} events (${views} views, ${clicks} clicks)`);
-          console.log(`[adnet] ${domain}:   IPFS: ${ipfsResult.url}`);
-
-          // Submit batch directly to campaign contract (decentralized)
-          const campaign = this.campaignsCache.find(c => c.id === campaignId || c.campaignId === campaignId);
-          const contractAddress = campaign?.contractAddress;
-
-          if (contractAddress && blockchainService.isEnabled()) {
-            const txResult = await blockchainService.submitBatch(
-              contractAddress,
+          const campaign = this.campaignsCache.find(c => c.id === campaignId);
+          if (campaign?.contractAddress && blockchainService.isEnabled()) {
+            // Push to individual CampaignWallet with on-chain hash verification
+            await blockchainService.submitBatch(
+              campaign.contractAddress,
               ipfsResult.hash,
               views,
               clicks,
-              events.length, // reach
               state.lastHash
             );
-
-            if (txResult) {
-              console.log(`[adnet] ${domain}:   Contract: tx ${txResult.txHash}`);
-              flushResult.txHash = txResult.txHash;
-              flushResult.blockNumber = txResult.blockNumber;
-            } else {
-              console.log(`[adnet] ${domain}:   Contract submission skipped or failed`);
-            }
-          } else if (!contractAddress) {
-            console.log(`[adnet] ${domain}:   No contract address for campaign ${campaignId}`);
           }
-        } else {
-          console.log(`[adnet] ${domain}: Campaign ${campaignId}: ${events.length} events (IPFS unavailable)`);
         }
-
-        // Record to history
-        this.recordFlushHistory(domain, flushResult);
-        results.push(flushResult);
-      } catch (error) {
-        console.error(`[adnet] ${domain}: Failed to upload campaign ${campaignId}:`, error.message);
-        results.push({ campaignId, success: false, error: error.message });
+        results.push({ campaignId, success: !!ipfsResult });
+      } catch (e) {
+        console.error(`[adnet] Flush error:`, e);
       }
     }
 
-    // Clear the chain and update state
     state.eventChain = [];
     state.lastHash = crypto.createHash('sha256').update(Date.now().toString()).digest('hex');
-    state.flushCount++;
     this.saveDomainState(domain);
-
     return results;
   }
 
@@ -467,42 +425,28 @@ export default class AdnetAgent {
   }
 
   /**
-   * Verify delegation token from request (epistery pattern)
+   * Verify signed event from client
+   * Proves the user owns the wallet they claim
    */
-  async verifyDelegationToken(req) {
-    const delegationHeader = req.headers['x-epistery-delegation'];
-    const delegationCookie = req.cookies?.epistery_delegation;
-    const tokenData = delegationHeader || delegationCookie;
-
-    if (!tokenData) {
-      return { valid: false };
+  verifyEventSignature(userAddress, signature, campaignId, type, timestamp) {
+    if (!userAddress || !signature) {
+      return { verified: false, address: null };
     }
 
     try {
-      const token = typeof tokenData === 'string' ? JSON.parse(tokenData) : tokenData;
-      const { delegation, signature } = token;
+      const message = `adnet:${campaignId}:${type}:${timestamp}`;
+      const recoveredAddress = ethers.verifyMessage(message, signature);
+      const verified = recoveredAddress.toLowerCase() === userAddress.toLowerCase();
 
-      if (!delegation || !signature) {
-        return { valid: false, error: 'Invalid token structure' };
+      if (verified) {
+        return { verified: true, address: recoveredAddress.toLowerCase() };
+      } else {
+        console.warn(`[adnet] Signature mismatch: claimed ${userAddress}, recovered ${recoveredAddress}`);
+        return { verified: false, address: null };
       }
-
-      if (Date.now() > delegation.expires) {
-        return { valid: false, error: 'Token expired' };
-      }
-
-      const requestDomain = req.hostname || req.get('host')?.split(':')[0];
-      if (delegation.audience !== requestDomain) {
-        return { valid: false, error: 'Token audience mismatch' };
-      }
-
-      return {
-        valid: true,
-        address: delegation.subject,
-        domain: delegation.audience,
-        scope: delegation.scope
-      };
     } catch (error) {
-      return { valid: false, error: error.message };
+      console.error('[adnet] Signature verification failed:', error.message);
+      return { verified: false, address: null };
     }
   }
 
@@ -514,7 +458,7 @@ export default class AdnetAgent {
     // Get epistery instance from app.locals and set domain per-request
     router.use(async (req, res, next) => {
       // Store domain in request for domain-specific data access
-      req.publisherDomain = req.hostname || 'localhost';
+      req.publisherDomain = req.hostname || req.get('host')?.split(':')[0] || 'localhost';
 
       if (!this.epistery && req.app.locals.epistery) {
         this.epistery = req.app.locals.epistery;
@@ -628,41 +572,51 @@ export default class AdnetAgent {
     // Record event (view or click)
     router.post('/record', async (req, res) => {
       try {
-        const { campaignId, promotionId, type } = req.body;
-        const domain = req.publisherDomain;
+        const { campaignId, promotionId, type, timestamp, userAddress, signature, notabotScore } = req.body;
+        const domain = req.publisherDomain; // Set by your middleware
 
+        // 1. Validation
         if (!campaignId || !type) {
           return res.status(400).json({ status: 'error', message: 'campaignId and type required' });
         }
 
         if (!['view', 'click'].includes(type)) {
-          return res.status(400).json({ status: 'error', message: 'type must be view or click' });
+          return res.status(400).json({ status: 'error', message: 'Invalid event type' });
         }
 
-        // Check delegation (optional - anonymous OK)
-        const verification = await this.verifyDelegationToken(req);
+        // 2. Verify signature (cryptographic proof of wallet ownership)
+        const verification = this.verifyEventSignature(userAddress, signature, campaignId, type, timestamp);
 
+        // 3. Construct the Event Object
         const event = {
           campaignId,
-          promotionId,
+          promotionId: promotionId || 'default',
           type,
-          userAddress: verification.valid ? verification.address : null,
-          userVerified: verification.valid,
-          timestamp: new Date().toISOString()
+          userAddress: verification.verified ? verification.address : null,
+          verified: verification.verified,
+          notabotScore: notabotScore?.points || 0,
+          timestamp: new Date().toISOString(),
+          metadata: {
+            userAgent: req.get('User-Agent'),
+            referrer: req.get('Referrer')
+          }
         };
-
+    
+        // 4. Add to the Domain's Cryptographic Chain
+        // This function hashes the event and links it to the previousHash
         const chainedEvent = this.addEventToChain(domain, event);
         const state = this.getDomainState(domain);
 
         res.json({
           status: 'success',
-          event: { hash: chainedEvent.hash, chainIndex: chainedEvent.chainIndex },
-          chainLength: state.eventChain.length,
-          threshold: this.threshold
+          eventHash: chainedEvent.hash,
+          verified: verification.verified,
+          notabotScore: event.notabotScore,
+          batchProgress: `${state.eventChain.length}/${this.threshold}`
         });
       } catch (error) {
         console.error('[adnet] Record error:', error);
-        res.status(500).json({ status: 'error', message: error.message });
+        res.status(500).json({ status: 'error', message: 'Internal server error' });
       }
     });
 

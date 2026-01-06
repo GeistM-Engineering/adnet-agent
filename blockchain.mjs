@@ -70,15 +70,17 @@ class BlockchainService {
    * Submit a batch to the campaign contract
    * This is the key decentralized operation - publisher submits directly to contract
    *
+   * NOTE: The publisher wallet must have PUBLISHER_ROLE granted on the contract
+   * before calling this function. Use contract.grantRole(PUBLISHER_ROLE, walletAddress)
+   *
    * @param {string} contractAddress - Campaign contract address
    * @param {string} ipfsCID - IPFS content identifier for the batch
    * @param {number} impressions - Number of view events
    * @param {number} clicks - Number of click events
-   * @param {number} reach - Total events (unique reach)
-   * @param {string} lastHash - Last hash in the chain for verification
+   * @param {string} lastHash - Last hash in the chain for on-chain verification
    * @returns {Promise<Object|null>} Transaction result or null if disabled
    */
-  async submitBatch(contractAddress, ipfsCID, impressions, clicks, reach, lastHash) {
+  async submitBatch(contractAddress, ipfsCID, impressions, clicks, lastHash) {
     if (!this.enabled) {
       console.log('[blockchain] Not enabled, skipping contract submission');
       return null;
@@ -97,13 +99,13 @@ class BlockchainService {
 
       console.log(`[blockchain] Submitting batch to contract ${contractAddress}`);
       console.log(`[blockchain]   IPFS CID: ${ipfsCID}`);
-      console.log(`[blockchain]   Stats: ${impressions} views, ${clicks} clicks, ${reach} reach`);
+      console.log(`[blockchain]   Stats: ${impressions} views, ${clicks} clicks`);
+      console.log(`[blockchain]   Hash: ${hashBytes32.slice(0, 18)}...`);
 
       const tx = await contract.submitBatch(
         ipfsCID,
         impressions,
         clicks,
-        reach,
         hashBytes32
       );
 
@@ -121,15 +123,17 @@ class BlockchainService {
         ipfsCID,
         impressions,
         clicks,
-        reach
+        lastHash: hashBytes32
       };
     } catch (error) {
       console.error('[blockchain] Failed to submit batch:', error.message);
       // Log more details for debugging common issues
       if (error.message.includes('Budget exceeded')) {
         console.error('[blockchain] Campaign budget has been exhausted');
-      } else if (error.message.includes('Campaign not active')) {
+      } else if (error.message.includes('Campaign inactive')) {
         console.error('[blockchain] Campaign is paused or cancelled');
+      } else if (error.message.includes('AccessControl')) {
+        console.error('[blockchain] Publisher wallet does not have PUBLISHER_ROLE - contact campaign admin');
       }
       return null;
     }
