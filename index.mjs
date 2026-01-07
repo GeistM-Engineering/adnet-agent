@@ -425,6 +425,67 @@ export default class AdnetAgent {
   }
 
   /**
+   * Verify same-domain authentication (user's wallet address from header)
+   * Similar to message-board's authentication pattern
+   */
+  async verifySameDomainAuth(req) {
+    try {
+      const address = req.headers['x-wallet-address'];
+
+      if (!address) {
+        return { valid: false, error: 'No wallet address provided' };
+      }
+
+      const domain = req.publisherDomain;
+
+      // Verify this address is on publisher whitelist
+      if (this.epistery) {
+        // Check global admin first
+        const isGlobalAdmin = await this.isListedCaseInsensitive(address, 'epistery::admin');
+        if (isGlobalAdmin) {
+          return { valid: true, address, isGlobalAdmin: true, domain };
+        }
+
+        // Check domain admin
+        const isDomainAdmin = await this.isListedCaseInsensitive(address, `${domain}::admin`);
+        if (isDomainAdmin) {
+          return { valid: true, address, isDomainAdmin: true, domain };
+        }
+
+        // Check adnet publishers list
+        const isPublisher = await this.isListedCaseInsensitive(address, 'adnet::publishers');
+        if (isPublisher) {
+          return { valid: true, address, isPublisher: true, domain };
+        }
+      } else {
+        // Development mode - allow all authenticated users
+        console.log('[adnet] No epistery instance, allowing all authenticated users');
+        return { valid: true, address, domain };
+      }
+
+      return { valid: false, error: 'Not authorized - wallet not on publisher whitelist' };
+    } catch (error) {
+      console.error('[adnet] Same-domain auth error:', error);
+      return { valid: false, error: error.message };
+    }
+  }
+
+  /**
+   * Case-insensitive whitelist check
+   * Ethereum addresses are case-insensitive but string comparison is not
+   */
+  async isListedCaseInsensitive(address, listName) {
+    try {
+      const list = await this.epistery.getList(listName);
+      const addressLower = address.toLowerCase();
+      return list.some(entry => entry.addr.toLowerCase() === addressLower);
+    } catch (error) {
+      console.error(`[adnet] Error checking list ${listName}:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Verify signed event from client
    * Proves the user owns the wallet they claim
    */
@@ -511,6 +572,27 @@ export default class AdnetAgent {
         return res.status(404).send('Admin page not found');
       }
       res.sendFile(adminPath);
+    });
+
+    // Auth check endpoint - verifies if user is on publisher whitelist
+    router.get('/api/auth/check', async (req, res) => {
+      const auth = await this.verifySameDomainAuth(req);
+
+      if (auth.valid) {
+        res.json({
+          authenticated: true,
+          address: auth.address,
+          isGlobalAdmin: auth.isGlobalAdmin || false,
+          isDomainAdmin: auth.isDomainAdmin || false,
+          isPublisher: auth.isPublisher || false,
+          domain: auth.domain
+        });
+      } else {
+        res.json({
+          authenticated: false,
+          error: auth.error
+        });
+      }
     });
 
     // Get campaigns

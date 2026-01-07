@@ -3,639 +3,1610 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Adnet Agent Admin</title>
+  <title>Publisher Dashboard - AdNet</title>
   <link rel="stylesheet" href="/style/static.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    .admin-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: var(--spacer3);
+    :root {
+      --primary: #1877f2;
+      --primary-dark: #166fe5;
+      --success: #31a24c;
+      --warning: #f7b928;
+      --danger: #fa383e;
+      --bg-dark: #18191a;
+      --bg-card: #242526;
+      --bg-hover: #3a3b3c;
+      --text-primary: #e4e6eb;
+      --text-secondary: #b0b3b8;
+      --border: #3e4042;
     }
 
-    .console-layout {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--spacer3);
-      margin-bottom: var(--spacer3);
+    * {
+      box-sizing: border-box;
     }
 
-    .console-panel {
-      background: var(--bg-color-quiet-d);
-      border: 1px solid var(--page-border);
-      border-radius: 8px;
-      padding: var(--spacer2);
+    body {
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
     }
 
-    .console-panel.full-width {
-      grid-column: 1 / -1;
-    }
-
-    .panel-header {
+    /* Header */
+    .dashboard-header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: var(--spacer2);
-      padding-bottom: var(--spacer);
-      border-bottom: 2px solid var(--primary);
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
 
-    .panel-header h2 {
-      margin: 0;
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
       color: var(--primary);
-      font-size: 1.25rem;
     }
 
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: var(--spacer);
-      margin-bottom: var(--spacer2);
-    }
-
-    .stat-box {
-      background: var(--bg-color);
-      padding: var(--spacer2);
+    .domain-badge {
+      background: var(--bg-hover);
+      padding: 6px 12px;
       border-radius: 6px;
-      text-align: center;
-      border: 1px solid var(--page-border);
+      font-size: 13px;
+      color: var(--text-secondary);
     }
 
-    .stat-number {
-      display: block;
-      font-size: 2rem;
-      font-weight: bold;
-      color: var(--primary);
-      margin-bottom: var(--spacerhalf);
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
-    .stat-label {
-      display: block;
-      font-size: 0.875rem;
-      color: var(--text-color-quiet);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .chain-progress {
-      background: var(--bg-color);
-      padding: var(--spacer2);
+    .date-selector {
+      background: var(--bg-hover);
+      border: 1px solid var(--border);
       border-radius: 6px;
-      border: 1px solid var(--page-border);
-    }
-
-    .progress-bar {
-      height: 20px;
-      background: #e9ecef;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: var(--spacer);
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #28a745, #20c997);
-      transition: width 0.3s ease;
-    }
-
-    .progress-text {
-      text-align: center;
-      font-size: 14px;
-      color: var(--text-color-quiet);
-    }
-
-    .history-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .history-table th {
-      background: var(--bg-color-d);
-      padding: var(--spacer);
-      text-align: left;
-      font-weight: 600;
-      color: var(--text-color);
-      border-bottom: 2px solid var(--page-border);
-      font-size: 0.875rem;
-    }
-
-    .history-table td {
-      padding: var(--spacer);
-      border-bottom: 1px solid var(--page-border);
-      font-size: 0.875rem;
-    }
-
-    .history-table tr:hover {
-      background: var(--bg-color-d);
-    }
-
-    .mono {
-      font-family: 'Courier New', monospace;
-      font-size: 0.75rem;
-      color: var(--text-color-quiet);
-    }
-
-    .ipfs-link {
-      color: var(--action-color);
-      text-decoration: none;
-    }
-
-    .ipfs-link:hover {
-      text-decoration: underline;
+      padding: 8px 12px;
+      color: var(--text-primary);
+      font-size: 13px;
+      cursor: pointer;
     }
 
     .btn {
       padding: 8px 16px;
-      border: none;
       border-radius: 6px;
-      font-size: 0.875rem;
-      font-weight: 500;
+      font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
+      border: none;
       transition: all 0.2s;
     }
 
     .btn-primary {
-      background: var(--action-color);
+      background: var(--primary);
       color: white;
     }
 
     .btn-primary:hover {
-      background: var(--action-color-hilite);
-      transform: translateY(-1px);
+      background: var(--primary-dark);
     }
 
-    .btn-danger {
-      background: #dc3545;
-      color: white;
+    .btn-secondary {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
     }
 
-    .btn-danger:hover {
-      background: #c82333;
+    .btn-secondary:hover {
+      background: var(--border);
     }
 
-    .config-item {
+    /* Main Content */
+    .dashboard-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* Wallet Info Section */
+    .wallet-section {
+      background: linear-gradient(135deg, var(--primary) 0%, #6c5ce7 100%);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: var(--spacer);
-      background: var(--bg-color);
+    }
+
+    .wallet-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .wallet-label {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .wallet-address {
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      font-size: 15px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.2);
+      padding: 8px 16px;
       border-radius: 6px;
-      margin-bottom: var(--spacer);
-      border: 1px solid var(--page-border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .config-label {
-      font-weight: 500;
-      color: var(--text-color);
+    .copy-btn {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 4px;
+      opacity: 0.8;
     }
 
-    .config-value {
-      font-family: 'Courier New', monospace;
+    .copy-btn:hover {
+      opacity: 1;
+    }
+
+    .wallet-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #31a24c;
+    }
+
+    .status-dot.disconnected {
+      background: var(--danger);
+    }
+
+    /* Revenue Cards */
+    .revenue-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .revenue-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .revenue-card.highlight {
+      background: linear-gradient(135deg, rgba(24, 119, 242, 0.1) 0%, rgba(108, 92, 231, 0.1) 100%);
+      border-color: var(--primary);
+    }
+
+    .revenue-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .revenue-value {
+      font-size: 32px;
+      font-weight: 700;
+    }
+
+    .revenue-value.earnings {
+      color: var(--success);
+    }
+
+    .revenue-subtext {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Section Headers */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    /* Campaign Cards */
+    .campaigns-section {
+      margin-bottom: 24px;
+    }
+
+    .campaign-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      display: grid;
+      grid-template-columns: 80px 1fr auto;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .campaign-card:hover {
+      border-color: var(--primary);
+    }
+
+    .campaign-creative {
+      width: 80px;
+      height: 60px;
+      border-radius: 8px;
+      background: var(--bg-hover);
+      object-fit: cover;
+    }
+
+    .campaign-info {
+      min-width: 0;
+    }
+
+    .campaign-brand {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .campaign-meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 16px;
+    }
+
+    .campaign-stats {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .campaign-stat {
+      text-align: right;
+    }
+
+    .campaign-stat-value {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .campaign-stat-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .campaign-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Toggle Switch */
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--bg-hover);
+      border-radius: 24px;
+      transition: 0.3s;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+
+    .toggle input:checked + .toggle-slider {
+      background: var(--success);
+    }
+
+    .toggle input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+
+    /* Status Badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.authorized {
+      background: rgba(49, 162, 76, 0.2);
+      color: var(--success);
+    }
+
+    .status-badge.not-authorized {
+      background: rgba(250, 56, 62, 0.2);
+      color: var(--danger);
+    }
+
+    .status-badge.active {
+      background: rgba(49, 162, 76, 0.2);
+      color: var(--success);
+    }
+
+    .status-badge.paused {
+      background: rgba(247, 185, 40, 0.2);
+      color: var(--warning);
+    }
+
+    /* Chart Section */
+    .chart-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .chart-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .legend-dot.impressions {
+      background: #1877f2;
+    }
+
+    .legend-dot.clicks {
+      background: #31a24c;
+    }
+
+    .legend-dot.revenue {
+      background: #f7b928;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 280px;
+    }
+
+    /* Event Chain Progress */
+    .chain-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+
+    .chain-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .chain-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .chain-count {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .chain-progress {
+      height: 8px;
+      background: var(--bg-hover);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .chain-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), #6c5ce7);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    /* Payment History Table */
+    .table-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .table-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 12px 16px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .data-table tr:hover {
+      background: var(--bg-hover);
+    }
+
+    .tx-hash {
+      font-family: 'SF Mono', monospace;
+      font-size: 12px;
       color: var(--primary);
-      font-size: 0.875rem;
+      text-decoration: none;
     }
 
+    .tx-hash:hover {
+      text-decoration: underline;
+    }
+
+    /* Empty State */
     .empty-state {
       text-align: center;
-      padding: var(--spacer3);
-      color: var(--text-color-quiet);
+      padding: 48px 24px;
+      color: var(--text-secondary);
     }
 
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-weight: 500;
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
     }
 
-    .badge-success {
-      background: #d4edda;
-      color: #155724;
+    .empty-state-text {
+      font-size: 14px;
     }
 
-    .badge-danger {
-      background: #f8d7da;
-      color: #721c24;
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .metrics-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
     }
 
-    .message {
-      padding: var(--spacer);
-      border-radius: 6px;
-      margin-bottom: var(--spacer2);
-      border: 1px solid;
+    @media (max-width: 1024px) {
+      .dashboard-content {
+        padding: 16px;
+      }
+
+      .metrics-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+
+      .revenue-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+
+      .chart-container {
+        height: 220px;
+      }
     }
 
-    .message.success {
-      background: #d4edda;
-      color: #155724;
-      border-color: #c3e6cb;
+    @media (max-width: 768px) {
+      .dashboard-header {
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px 16px;
+      }
+
+      .header-left {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .header-right {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .wallet-section {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+        text-align: center;
+      }
+
+      .wallet-info {
+        flex-direction: column;
+      }
+
+      .wallet-address {
+        font-size: 13px;
+        padding: 6px 12px;
+      }
+
+      .revenue-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .revenue-card {
+        padding: 16px;
+      }
+
+      .revenue-value {
+        font-size: 26px;
+      }
+
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .metric-card {
+        padding: 12px;
+      }
+
+      .metric-value {
+        font-size: 20px;
+      }
+
+      .metric-label {
+        font-size: 10px;
+      }
+
+      .chart-section {
+        padding: 12px;
+      }
+
+      .chart-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .chart-legend {
+        font-size: 11px;
+        gap: 12px;
+      }
+
+      .chart-container {
+        height: 200px;
+      }
+
+      .campaign-card {
+        grid-template-columns: 60px 1fr;
+        gap: 12px;
+        padding: 12px;
+      }
+
+      .campaign-creative {
+        width: 60px;
+        height: 45px;
+      }
+
+      .campaign-brand {
+        font-size: 14px;
+      }
+
+      .campaign-meta {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .campaign-stats {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-top: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+      }
+
+      .campaign-stat {
+        text-align: center;
+      }
+
+      .campaign-stat-value {
+        font-size: 13px;
+      }
+
+      .section-title {
+        font-size: 16px;
+      }
+
+      .data-table {
+        font-size: 12px;
+      }
+
+      .data-table th,
+      .data-table td {
+        padding: 8px 10px;
+      }
+
+      /* Hide some columns on mobile */
+      .data-table th:nth-child(2),
+      .data-table td:nth-child(2) {
+        display: none;
+      }
     }
 
-    .message.error {
-      background: #f8d7da;
-      color: #721c24;
-      border-color: #f5c6cb;
+    @media (max-width: 480px) {
+      .dashboard-content {
+        padding: 12px;
+      }
+
+      .logo {
+        font-size: 16px;
+      }
+
+      .domain-badge {
+        font-size: 11px;
+        padding: 4px 8px;
+      }
+
+      .btn {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+
+      .date-selector {
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      /* Hide 5th metric on very small screens */
+      .metrics-grid .metric-card:nth-child(5) {
+        display: none;
+      }
+
+      .campaign-stats {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .campaign-toggle {
+        grid-column: 1 / -1;
+        justify-content: center;
+        padding-top: 8px;
+      }
+
+      .chain-section {
+        padding: 12px;
+      }
+
+      .chain-header {
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-start;
+      }
+
+      /* Hide more table columns */
+      .data-table th:nth-child(3),
+      .data-table td:nth-child(3),
+      .data-table th:nth-child(6),
+      .data-table td:nth-child(6) {
+        display: none;
+      }
+    }
+
+    /* Auth Screen */
+    .auth-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .auth-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px;
+      max-width: 480px;
+      width: 100%;
+    }
+
+    .auth-icon {
+      font-size: 64px;
+      margin-bottom: 24px;
+    }
+
+    .auth-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .auth-message {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    .auth-wallet {
+      background: var(--bg-hover);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: 'SF Mono', monospace;
+      font-size: 13px;
+      margin-bottom: 24px;
+      word-break: break-all;
+    }
+
+    .auth-wallet.not-connected {
+      color: var(--warning);
+    }
+
+    .auth-help {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .auth-help a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    .auth-help a:hover {
+      text-decoration: underline;
+    }
+
+    .auth-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 24px auto;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Toast Messages */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 1000;
+      animation: slideIn 0.3s ease;
+    }
+
+    .toast.success {
+      border-color: var(--success);
+    }
+
+    .toast.error {
+      border-color: var(--danger);
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
     }
   </style>
 </head>
 <body>
-  <header>
-    <nav class="container">
-      <a href="/" class="logo">
-        <span class="logo-text">📊 Adnet Agent Admin</span>
-      </a>
-      <div style="display: flex; gap: var(--spacer); align-items: center;">
-        <span id="domain-display" style="color: var(--text-color-quiet); font-size: 14px;"></span>
-        <button class="btn btn-primary" onclick="manualFlush()">Flush Events</button>
+  <!-- Auth Loading Screen -->
+  <div id="auth-loading" class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-spinner"></div>
+      <div class="auth-title">Checking Authorization</div>
+      <div class="auth-message">Please wait while we verify your access...</div>
+    </div>
+  </div>
+
+  <!-- Auth Denied Screen -->
+  <div id="auth-denied" class="auth-screen hidden">
+    <div class="auth-card">
+      <div class="auth-icon">🔒</div>
+      <div class="auth-title">Access Denied</div>
+      <div class="auth-message">
+        Your wallet is not authorized to access this publisher dashboard.
+        Only addresses on the <strong>adnet::publishers</strong> whitelist can access this page.
       </div>
-    </nav>
+      <div class="auth-wallet" id="denied-wallet">Not Connected</div>
+      <div class="auth-help">
+        Contact your administrator to request access, or
+        <a href="/" onclick="window.location.reload()">try again</a> with a different wallet.
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Dashboard (hidden until authenticated) -->
+  <div id="main-dashboard" class="hidden">
+  <!-- Header -->
+  <header class="dashboard-header">
+    <div class="header-left">
+      <div class="logo">AdNet Publisher</div>
+      <div class="domain-badge" id="domain-display">Loading...</div>
+    </div>
+    <div class="header-right">
+      <select class="date-selector" id="date-range">
+        <option value="today">Today</option>
+        <option value="yesterday">Yesterday</option>
+        <option value="7days" selected>Last 7 Days</option>
+        <option value="28days">Last 28 Days</option>
+        <option value="month">This Month</option>
+      </select>
+      <button class="btn btn-secondary" onclick="refreshData()">Refresh</button>
+      <button class="btn btn-primary" onclick="manualFlush()">Flush Events</button>
+    </div>
   </header>
 
-  <main class="admin-container">
-    <div id="message-container"></div>
-
-    <!-- Stats Panel -->
-    <section class="console-panel full-width">
-      <div class="panel-header">
-        <h2>Overview</h2>
-      </div>
-      <div class="stats">
-        <div class="stat-box">
-          <span id="pending-events" class="stat-number">-</span>
-          <span class="stat-label">Pending Events</span>
-        </div>
-        <div class="stat-box">
-          <span id="total-views" class="stat-number">-</span>
-          <span class="stat-label">Total Views</span>
-        </div>
-        <div class="stat-box">
-          <span id="total-clicks" class="stat-number">-</span>
-          <span class="stat-label">Total Clicks</span>
-        </div>
-        <div class="stat-box">
-          <span id="flush-count" class="stat-number">-</span>
-          <span class="stat-label">IPFS Flushes</span>
-        </div>
-        <div class="stat-box">
-          <span id="total-events" class="stat-number">-</span>
-          <span class="stat-label">Total Events</span>
+  <!-- Main Content -->
+  <main class="dashboard-content">
+    <!-- Wallet Section -->
+    <section class="wallet-section">
+      <div class="wallet-info">
+        <div>
+          <div class="wallet-label">Your Publisher Wallet</div>
+          <div class="wallet-address">
+            <span id="wallet-address">Not Connected</span>
+            <button class="copy-btn" onclick="copyWallet()" title="Copy address">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
+      <div class="wallet-status">
+        <span class="status-dot" id="blockchain-status"></span>
+        <span id="blockchain-text">Checking...</span>
+      </div>
+    </section>
 
+    <!-- Revenue Cards -->
+    <section class="revenue-grid">
+      <div class="revenue-card">
+        <div class="revenue-label">Total Revenue</div>
+        <div class="revenue-value" id="total-revenue">$0.00</div>
+        <div class="revenue-subtext">All time earnings from ads</div>
+      </div>
+      <div class="revenue-card highlight">
+        <div class="revenue-label">Your Earnings (30%)</div>
+        <div class="revenue-value earnings" id="your-earnings">$0.00</div>
+        <div class="revenue-subtext">Available for withdrawal</div>
+      </div>
+      <div class="revenue-card">
+        <div class="revenue-label">Pending</div>
+        <div class="revenue-value" id="pending-revenue">$0.00</div>
+        <div class="revenue-subtext">Awaiting blockchain confirmation</div>
+      </div>
+    </section>
+
+    <!-- Metrics Grid -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-value" id="page-views">0</div>
+        <div class="metric-label">Page Views</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="impressions">0</div>
+        <div class="metric-label">Impressions</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="clicks">0</div>
+        <div class="metric-label">Clicks</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="rpm">$0.00</div>
+        <div class="metric-label">RPM</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="ctr">0.00%</div>
+        <div class="metric-label">CTR</div>
+      </div>
+    </section>
+
+    <!-- Performance Chart -->
+    <section class="chart-section">
+      <div class="chart-header">
+        <div class="chart-title">Performance Overview</div>
+        <div class="chart-legend">
+          <div class="legend-item">
+            <span class="legend-dot impressions"></span>
+            <span>Impressions</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot clicks"></span>
+            <span>Clicks</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot revenue"></span>
+            <span>Revenue ($)</span>
+          </div>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="performanceChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Event Chain Progress -->
+    <section class="chain-section">
+      <div class="chain-header">
+        <div class="chain-title">Event Chain Progress</div>
+        <div class="chain-count"><span id="chain-current">0</span> / <span id="chain-threshold">5</span> events until flush</div>
+      </div>
       <div class="chain-progress">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-          <span>Event Chain Progress</span>
-          <span id="chain-count">0 / 5</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
-        </div>
-        <div class="progress-text">Events are flushed to IPFS when threshold is reached</div>
+        <div class="chain-fill" id="chain-fill" style="width: 0%"></div>
       </div>
     </section>
 
-    <div class="console-layout">
-      <!-- Configuration Panel -->
-      <section class="console-panel">
-        <div class="panel-header">
-          <h2>Configuration</h2>
-        </div>
-
-        <div class="config-item">
-          <span class="config-label">Flush Threshold</span>
-          <span class="config-value" id="config-threshold">-</span>
-        </div>
-
-        <div class="config-item">
-          <span class="config-label">Factory URL</span>
-          <span class="config-value" id="config-factory">-</span>
-        </div>
-
-        <div class="config-item">
-          <span class="config-label">IPFS API</span>
-          <span class="config-value" id="config-ipfs">-</span>
-        </div>
-
-        <div class="config-item">
-          <span class="config-label">IPFS Gateway</span>
-          <span class="config-value" id="config-gateway">-</span>
-        </div>
-
-        <div class="config-item">
-          <span class="config-label">Last Hash</span>
-          <span class="config-value mono" id="config-hash">-</span>
-        </div>
-      </section>
-
-      <!-- Campaigns Panel -->
-      <section class="console-panel">
-        <div class="panel-header">
-          <h2>Active Campaigns</h2>
-          <button class="btn" onclick="loadCampaigns()">Refresh</button>
-        </div>
-
-        <div id="campaigns-list"></div>
-      </section>
-    </div>
-
-    <!-- Contract Reports Panel -->
-    <section class="console-panel full-width">
-      <div class="panel-header">
-        <h2>Contract Reports</h2>
-        <button class="btn" onclick="loadContractReports()">Refresh</button>
+    <!-- Active Campaigns -->
+    <section class="campaigns-section">
+      <div class="section-header">
+        <h2 class="section-title">Active Campaigns</h2>
       </div>
-
-      <div id="contract-reports-container"></div>
+      <div id="campaigns-container">
+        <div class="empty-state">
+          <div class="empty-state-icon">📊</div>
+          <div class="empty-state-text">Loading campaigns...</div>
+        </div>
+      </div>
     </section>
 
-    <!-- History Panel -->
-    <section class="console-panel full-width">
-      <div class="panel-header">
-        <h2>Flush History</h2>
+    <!-- Payment History -->
+    <section class="table-section">
+      <div class="table-header">
+        <h2 class="section-title">Payment History</h2>
       </div>
-
-      <div id="history-container"></div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Campaign</th>
+            <th>Events</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>IPFS</th>
+          </tr>
+        </thead>
+        <tbody id="history-body">
+          <tr>
+            <td colspan="6" class="empty-state">
+              <div class="empty-state-text">No payment history yet</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </section>
   </main>
-
-  <footer>
-    <div class="container">
-      <div class="footer-bottom">
-        <p>&copy; 2025 GeistM. Powered by Epistery.</p>
-      </div>
-    </div>
-  </footer>
+  </div> <!-- End main-dashboard -->
 
   <script>
-    // Load initial data
+    const API_BASE = '/agent/geistm/adnet-agent';
+    const EPISTERY_BASE = window.location.origin;
+    let statusData = null;
+    let userWalletAddress = null;
+    let Witness = null;
+
+    // Chart instance
+    let performanceChart = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      await checkAuthentication();
+    });
+
+    async function checkAuthentication() {
+      const loadingScreen = document.getElementById('auth-loading');
+      const deniedScreen = document.getElementById('auth-denied');
+      const dashboard = document.getElementById('main-dashboard');
+
+      try {
+        // Try to load the Witness library for wallet access
+        try {
+          const module = await import(`${EPISTERY_BASE}/lib/witness.js`);
+          Witness = module.default;
+          const witness = await Witness.connect({ rootPath: EPISTERY_BASE });
+          const status = witness.getStatus();
+
+          if (status.client && status.client.address) {
+            userWalletAddress = status.client.address;
+          }
+        } catch (e) {
+          console.warn('[Admin] Failed to load Witness:', e);
+        }
+
+        // Check if user is authorized
+        const authResponse = await fetch(`${API_BASE}/api/auth/check`, {
+          headers: userWalletAddress ? { 'x-wallet-address': userWalletAddress } : {}
+        });
+        const auth = await authResponse.json();
+
+        if (auth.authenticated) {
+          // User is authorized, show dashboard
+          loadingScreen.classList.add('hidden');
+          deniedScreen.classList.add('hidden');
+          dashboard.classList.remove('hidden');
+
+          // Start loading data
+          loadData();
+          setInterval(loadData, 30000); // Refresh every 30s
+        } else {
+          // User is not authorized
+          loadingScreen.classList.add('hidden');
+          dashboard.classList.add('hidden');
+          deniedScreen.classList.remove('hidden');
+
+          // Show wallet address if available
+          const walletDisplay = document.getElementById('denied-wallet');
+          if (userWalletAddress) {
+            walletDisplay.textContent = userWalletAddress;
+            walletDisplay.classList.remove('not-connected');
+          } else {
+            walletDisplay.textContent = 'No wallet connected - please connect your wallet first';
+            walletDisplay.classList.add('not-connected');
+          }
+        }
+      } catch (error) {
+        console.error('[Admin] Auth check failed:', error);
+        // On error, show denied screen with error message
+        loadingScreen.classList.add('hidden');
+        dashboard.classList.add('hidden');
+        deniedScreen.classList.remove('hidden');
+
+        document.getElementById('denied-wallet').textContent = 'Error checking authorization: ' + error.message;
+        document.getElementById('denied-wallet').classList.add('not-connected');
+      }
+    }
+
     async function loadData() {
       try {
-        // Load status
-        const statusResponse = await fetch('/agent/geistm/adnet-agent/status');
-        const status = await statusResponse.json();
+        const [status, campaigns, history] = await Promise.all([
+          fetch(`${API_BASE}/status`).then(r => r.json()),
+          fetch(`${API_BASE}/campaigns`).then(r => r.json()),
+          fetch(`${API_BASE}/history`).then(r => r.json())
+        ]);
 
-        document.getElementById('domain-display').textContent = status.domain;
-        document.getElementById('pending-events').textContent = status.chain?.length || 0;
-        document.getElementById('total-views').textContent = status.stats?.totalViews || 0;
-        document.getElementById('total-clicks').textContent = status.stats?.totalClicks || 0;
-        document.getElementById('flush-count').textContent = status.stats?.flushCount || 0;
-        document.getElementById('total-events').textContent = status.stats?.totalEvents || 0;
-
-        // Update progress bar
-        const pending = status.chain?.length || 0;
-        const threshold = status.chain?.threshold || 5;
-        const percent = Math.min((pending / threshold) * 100, 100);
-        document.getElementById('progress-fill').style.width = `${percent}%`;
-        document.getElementById('chain-count').textContent = `${pending} / ${threshold}`;
-
-        // Update config
-        document.getElementById('config-threshold').textContent = status.chain?.threshold || '-';
-        document.getElementById('config-factory').textContent = status.factory?.url || '-';
-        document.getElementById('config-ipfs').textContent = status.ipfs?.url || '-';
-        document.getElementById('config-gateway').textContent = status.ipfs?.gateway || '-';
-        document.getElementById('config-hash').textContent = status.chain?.lastHash?.substring(0, 16) + '...' || '-';
-
-        // Load history
-        await loadHistory();
-
-        // Load campaigns
-        await loadCampaigns();
-
-        // Load contract reports
-        await loadContractReports();
-
+        statusData = status;
+        updateUI(status, campaigns, history);
       } catch (error) {
-        console.error('[admin] Failed to load data:', error);
-        showMessage('Failed to load data: ' + error.message, 'error');
+        console.error('Failed to load data:', error);
+        showToast('Failed to load data', 'error');
       }
     }
 
-    // Load flush history
-    async function loadHistory() {
-      try {
-        const response = await fetch('/agent/geistm/adnet-agent/history');
-        const data = await response.json();
+    function updateUI(status, campaigns, history) {
+      // Domain
+      document.getElementById('domain-display').textContent = status.domain || 'Unknown';
 
-        const container = document.getElementById('history-container');
+      // Wallet
+      const walletAddr = status.blockchain?.wallet;
+      if (walletAddr) {
+        document.getElementById('wallet-address').textContent =
+          `${walletAddr.substring(0, 6)}...${walletAddr.substring(38)}`;
+        document.getElementById('wallet-address').dataset.full = walletAddr;
+      } else {
+        document.getElementById('wallet-address').textContent = 'Not Connected';
+      }
 
-        if (!data.flushes || data.flushes.length === 0) {
-          container.innerHTML = '<div class="empty-state">No flush history yet</div>';
-          return;
-        }
+      // Blockchain status
+      const statusDot = document.getElementById('blockchain-status');
+      const statusText = document.getElementById('blockchain-text');
+      if (status.blockchain?.enabled) {
+        statusDot.classList.remove('disconnected');
+        statusText.textContent = 'Connected to Polygon';
+      } else {
+        statusDot.classList.add('disconnected');
+        statusText.textContent = 'Blockchain Disabled';
+      }
 
-        // Show most recent first
-        const flushes = [...data.flushes].reverse().slice(0, 20);
+      // Revenue calculations (mock for now - will come from blockchain)
+      const totalViews = history.totalViews || 0;
+      const totalClicks = history.totalClicks || 0;
+      const impressionRate = 0.001; // $0.001 per impression
+      const clickRate = 0.01; // $0.01 per click
+      const totalRevenue = (totalViews * impressionRate) + (totalClicks * clickRate);
+      const publisherShare = totalRevenue * 0.30;
 
+      document.getElementById('total-revenue').textContent = `$${totalRevenue.toFixed(2)}`;
+      document.getElementById('your-earnings').textContent = `$${publisherShare.toFixed(2)}`;
+      document.getElementById('pending-revenue').textContent = `$${(totalRevenue - publisherShare).toFixed(2)}`;
+
+      // Metrics
+      document.getElementById('page-views').textContent = formatNumber(history.totalEvents || 0);
+      document.getElementById('impressions').textContent = formatNumber(totalViews);
+      document.getElementById('clicks').textContent = formatNumber(totalClicks);
+
+      const rpm = totalViews > 0 ? (totalRevenue / totalViews) * 1000 : 0;
+      document.getElementById('rpm').textContent = `$${rpm.toFixed(2)}`;
+
+      const ctr = totalViews > 0 ? (totalClicks / totalViews) * 100 : 0;
+      document.getElementById('ctr').textContent = `${ctr.toFixed(2)}%`;
+
+      // Event chain progress
+      const chainLength = status.chain?.length || 0;
+      const threshold = status.chain?.threshold || 5;
+      document.getElementById('chain-current').textContent = chainLength;
+      document.getElementById('chain-threshold').textContent = threshold;
+      document.getElementById('chain-fill').style.width = `${(chainLength / threshold) * 100}%`;
+
+      // Campaigns
+      renderCampaigns(campaigns.campaigns || []);
+
+      // History
+      renderHistory(history.flushes || []);
+
+      // Chart
+      renderChart(history.flushes || []);
+    }
+
+    function renderCampaigns(campaigns) {
+      const container = document.getElementById('campaigns-container');
+
+      if (!campaigns.length) {
         container.innerHTML = `
-          <table class="history-table">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Campaign</th>
-                <th>Events</th>
-                <th>Views</th>
-                <th>Clicks</th>
-                <th>IPFS</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${flushes.map(flush => `
-                <tr>
-                  <td>${new Date(flush.timestamp).toLocaleString()}</td>
-                  <td class="mono">${flush.campaignId?.substring(0, 20)}...</td>
-                  <td>${flush.eventCount}</td>
-                  <td>${flush.views}</td>
-                  <td>${flush.clicks}</td>
-                  <td>
-                    ${flush.ipfsHash ? 
-                      `<a href="${flush.ipfsUrl}" target="_blank" class="ipfs-link mono">${flush.ipfsHash.substring(0, 12)}...</a>` : 
-                      '-'
-                    }
-                  </td>
-                  <td>
-                    <span class="badge ${flush.success ? 'badge-success' : 'badge-danger'}">
-                      ${flush.success ? 'Success' : 'Failed'}
-                    </span>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+          <div class="empty-state">
+            <div class="empty-state-icon">📢</div>
+            <div class="empty-state-text">No active campaigns. Share your wallet address with advertisers to get started.</div>
+          </div>
         `;
-      } catch (error) {
-        console.error('[admin] Failed to load history:', error);
+        return;
       }
-    }
 
-    // Load campaigns
-    async function loadCampaigns() {
-      try {
-        const response = await fetch('/agent/geistm/adnet-agent/campaigns');
-        const data = await response.json();
+      container.innerHTML = campaigns.map(campaign => {
+        const creative = campaign.promotions?.[0]?.creative || '';
+        const creativeUrl = creative.startsWith('http') ? creative : `https://ipfs.io/ipfs/${creative}`;
 
-        const container = document.getElementById('campaigns-list');
-
-        if (!data.campaigns || data.campaigns.length === 0) {
-          container.innerHTML = '<div class="empty-state">No active campaigns</div>';
-          return;
-        }
-
-        container.innerHTML = data.campaigns.map(campaign => `
-          <div class="config-item">
-            <div>
-              <div style="font-weight: 500;">${campaign.brand || 'Unknown Brand'}</div>
-              <div class="mono" style="font-size: 11px;">${campaign.id}</div>
+        return `
+          <div class="campaign-card" data-id="${campaign.id}">
+            <img src="${creativeUrl}" alt="${campaign.brand}" class="campaign-creative" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 80 60%22><rect fill=%22%233a3b3c%22 width=%2280%22 height=%2260%22/><text x=%2240%22 y=%2235%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2210%22>No Image</text></svg>'">
+            <div class="campaign-info">
+              <div class="campaign-brand">${campaign.brand || 'Unknown Brand'}</div>
+              <div class="campaign-meta">
+                <span>${campaign.promotions?.length || 0} ads</span>
+                <span class="status-badge ${campaign.active ? 'active' : 'paused'}">${campaign.active ? 'Active' : 'Paused'}</span>
+                ${campaign.contractAddress ? `<a href="https://amoy.polygonscan.com/address/${campaign.contractAddress}" target="_blank" class="tx-hash">${campaign.contractAddress.substring(0, 10)}...</a>` : ''}
+              </div>
             </div>
-            <div style="text-align: right;">
-              <div>${campaign.promotions?.length || 0} promotions</div>
-              <div style="font-size: 11px; color: var(--text-color-quiet);">${campaign.active ? 'Active' : 'Inactive'}</div>
+            <div class="campaign-stats">
+              <div class="campaign-stat">
+                <div class="campaign-stat-value">${formatNumber(campaign.views || 0)}</div>
+                <div class="campaign-stat-label">Views</div>
+              </div>
+              <div class="campaign-stat">
+                <div class="campaign-stat-value">${formatNumber(campaign.clicks || 0)}</div>
+                <div class="campaign-stat-label">Clicks</div>
+              </div>
+              <div class="campaign-stat">
+                <div class="campaign-stat-value">${campaign.views > 0 ? ((campaign.clicks / campaign.views) * 100).toFixed(1) : 0}%</div>
+                <div class="campaign-stat-label">CTR</div>
+              </div>
+              <div class="campaign-toggle">
+                <label class="toggle">
+                  <input type="checkbox" ${campaign.enabled !== false ? 'checked' : ''} onchange="toggleCampaign('${campaign.id}', this.checked)">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
             </div>
           </div>
-        `).join('');
-      } catch (error) {
-        console.error('[admin] Failed to load campaigns:', error);
-        document.getElementById('campaigns-list').innerHTML = '<div class="empty-state">Failed to load campaigns</div>';
-      }
-    }
-
-    // Load contract reports
-    async function loadContractReports() {
-      try {
-        const campaignsResponse = await fetch('/agent/geistm/adnet-agent/campaigns');
-        const campaignsData = await campaignsResponse.json();
-
-        const container = document.getElementById('contract-reports-container');
-
-        if (!campaignsData.campaigns || campaignsData.campaigns.length === 0) {
-          container.innerHTML = '<div class="empty-state">No campaigns to report on</div>';
-          return;
-        }
-
-        // Fetch reports for all campaigns
-        const reports = await Promise.all(
-          campaignsData.campaigns.map(async (campaign) => {
-            try {
-              const response = await fetch(`/agent/geistm/adnet-agent/campaigns/${campaign.id}/report`);
-              if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                return {
-                  campaign,
-                  error: error.error || 'Failed to fetch report',
-                  status: response.status
-                };
-              }
-              const data = await response.json();
-              return { campaign, report: data };
-            } catch (error) {
-              console.error(`Failed to load report for ${campaign.id}:`, error);
-              return { campaign, error: error.message };
-            }
-          })
-        );
-
-        container.innerHTML = `
-          <table class="history-table">
-            <thead>
-              <tr>
-                <th>Campaign</th>
-                <th>Brand</th>
-                <th>Total Events</th>
-                <th>Total Spent</th>
-                <th>Remaining Budget</th>
-                <th>Promotions</th>
-                <th>Status</th>
-                <th>Contract</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${reports.map(({ campaign, report, error }) => {
-                if (error) {
-                  return `
-                    <tr>
-                      <td class="mono" style="font-size: 11px;">${campaign.id.substring(0, 20)}...</td>
-                      <td>${campaign.brand || 'Unknown'}</td>
-                      <td colspan="6" style="color: var(--text-color-quiet); font-style: italic;">
-                        ${error}
-                      </td>
-                    </tr>
-                  `;
-                }
-
-                const stats = report.report?.stats || {};
-                const contract = report.report?.contract || {};
-                return `
-                  <tr>
-                    <td class="mono" style="font-size: 11px;">${campaign.id.substring(0, 20)}...</td>
-                    <td>${contract.brand || campaign.brand || 'Unknown'}</td>
-                    <td>${stats.totalEvents || 0}</td>
-                    <td>${stats.totalSpent || '0'} ETH</td>
-                    <td>${stats.remainingBudget || '0'} ETH</td>
-                    <td>${stats.promotionCount || contract.promotionCount || 0}</td>
-                    <td>
-                      <span class="badge ${stats.active ? 'badge-success' : 'badge-danger'}">
-                        ${stats.active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td class="mono" style="font-size: 10px;">
-                      ${contract.contractAddress ?
-                        `${contract.contractAddress.substring(0, 6)}...${contract.contractAddress.substring(38)}` :
-                        'Not deployed'
-                      }
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
         `;
-      } catch (error) {
-        console.error('[admin] Failed to load contract reports:', error);
-        document.getElementById('contract-reports-container').innerHTML = '<div class="empty-state">Failed to load contract reports</div>';
+      }).join('');
+    }
+
+    function renderHistory(flushes) {
+      const tbody = document.getElementById('history-body');
+
+      if (!flushes.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="empty-state">
+              <div class="empty-state-text">No payment history yet</div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // Show most recent first
+      const sorted = [...flushes].reverse().slice(0, 20);
+
+      tbody.innerHTML = sorted.map(flush => {
+        const date = new Date(flush.timestamp).toLocaleDateString();
+        const amount = ((flush.views || 0) * 0.001 + (flush.clicks || 0) * 0.01) * 0.30;
+
+        return `
+          <tr>
+            <td>${date}</td>
+            <td style="font-size: 12px;">${flush.campaignId?.substring(0, 20)}...</td>
+            <td>${flush.eventCount || 0}</td>
+            <td>$${amount.toFixed(4)}</td>
+            <td><span class="status-badge ${flush.success ? 'authorized' : 'not-authorized'}">${flush.success ? 'Confirmed' : 'Failed'}</span></td>
+            <td>${flush.ipfsHash ? `<a href="https://ipfs.io/ipfs/${flush.ipfsHash}" target="_blank" class="tx-hash">${flush.ipfsHash.substring(0, 12)}...</a>` : '-'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function formatNumber(num) {
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+      return num.toString();
+    }
+
+    function renderChart(flushes) {
+      const ctx = document.getElementById('performanceChart');
+      if (!ctx) return;
+
+      // Aggregate data by date from flushes
+      const dailyData = {};
+      const today = new Date();
+
+      // Initialize last 7 days
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const key = date.toISOString().split('T')[0];
+        dailyData[key] = { impressions: 0, clicks: 0, revenue: 0 };
+      }
+
+      // Aggregate flush data by day
+      (flushes || []).forEach(flush => {
+        const date = flush.timestamp.split('T')[0];
+        if (dailyData[date]) {
+          dailyData[date].impressions += flush.views || 0;
+          dailyData[date].clicks += flush.clicks || 0;
+          dailyData[date].revenue += ((flush.views || 0) * 0.001 + (flush.clicks || 0) * 0.01) * 0.30;
+        }
+      });
+
+      // Only show chart if there's real data
+      const hasData = Object.values(dailyData).some(d => d.impressions > 0);
+      if (!hasData) {
+        // Show empty state message
+        const container = ctx.parentElement;
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-text">No performance data yet. Data will appear after ad events are recorded.</div></div>';
+        return;
+      }
+
+      const labels = Object.keys(dailyData).map(d => {
+        const date = new Date(d);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      });
+
+      const impressionsData = Object.values(dailyData).map(d => d.impressions);
+      const clicksData = Object.values(dailyData).map(d => d.clicks);
+      const revenueData = Object.values(dailyData).map(d => d.revenue);
+
+      // Destroy existing chart
+      if (performanceChart) {
+        performanceChart.destroy();
+      }
+
+      performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Impressions',
+              data: impressionsData,
+              borderColor: '#1877f2',
+              backgroundColor: 'rgba(24, 119, 242, 0.1)',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Clicks',
+              data: clicksData,
+              borderColor: '#31a24c',
+              backgroundColor: 'rgba(49, 162, 76, 0.1)',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Revenue ($)',
+              data: revenueData,
+              borderColor: '#f7b928',
+              backgroundColor: 'rgba(247, 185, 40, 0.1)',
+              fill: false,
+              tension: 0.4,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              display: false // Using custom legend
+            },
+            tooltip: {
+              backgroundColor: '#242526',
+              titleColor: '#e4e6eb',
+              bodyColor: '#b0b3b8',
+              borderColor: '#3e4042',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: true,
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) label += ': ';
+                  if (context.dataset.label === 'Revenue ($)') {
+                    label += '$' + context.parsed.y.toFixed(2);
+                  } else {
+                    label += context.parsed.y.toLocaleString();
+                  }
+                  return label;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                color: 'rgba(62, 64, 66, 0.5)',
+                drawBorder: false
+              },
+              ticks: {
+                color: '#b0b3b8',
+                font: { size: 11 }
+              }
+            },
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              grid: {
+                color: 'rgba(62, 64, 66, 0.5)',
+                drawBorder: false
+              },
+              ticks: {
+                color: '#b0b3b8',
+                font: { size: 11 },
+                callback: function(value) {
+                  return value >= 1000 ? (value / 1000) + 'K' : value;
+                }
+              },
+              title: {
+                display: true,
+                text: 'Events',
+                color: '#b0b3b8',
+                font: { size: 11 }
+              }
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              grid: {
+                drawOnChartArea: false
+              },
+              ticks: {
+                color: '#f7b928',
+                font: { size: 11 },
+                callback: function(value) {
+                  return '$' + value.toFixed(2);
+                }
+              },
+              title: {
+                display: true,
+                text: 'Revenue',
+                color: '#f7b928',
+                font: { size: 11 }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function copyWallet() {
+      const addr = document.getElementById('wallet-address').dataset.full;
+      if (addr) {
+        navigator.clipboard.writeText(addr);
+        showToast('Wallet address copied!', 'success');
       }
     }
 
-    // Manual flush
+    function toggleCampaign(campaignId, enabled) {
+      // Store preference locally for now
+      const prefs = JSON.parse(localStorage.getItem('campaignPrefs') || '{}');
+      prefs[campaignId] = enabled;
+      localStorage.setItem('campaignPrefs', JSON.stringify(prefs));
+      showToast(`Campaign ${enabled ? 'enabled' : 'disabled'}`, 'success');
+    }
+
     async function manualFlush() {
       if (!confirm('Flush all pending events to IPFS now?')) return;
 
       try {
-        const response = await fetch('/agent/geistm/adnet-agent/flush', {
-          method: 'POST'
-        });
-
+        const response = await fetch(`${API_BASE}/flush`, { method: 'POST' });
         const data = await response.json();
 
         if (data.status === 'success') {
-          showMessage(`Flushed ${data.results?.length || 0} campaign batches to IPFS`, 'success');
-          await loadData();
+          showToast(`Flushed ${data.results?.length || 0} batches`, 'success');
+          loadData();
         } else {
-          showMessage('Flush failed: ' + (data.error || 'Unknown error'), 'error');
+          showToast('Flush failed: ' + (data.error || 'Unknown error'), 'error');
         }
       } catch (error) {
-        console.error('[admin] Flush error:', error);
-        showMessage('Flush failed: ' + error.message, 'error');
+        showToast('Flush failed: ' + error.message, 'error');
       }
     }
 
-    // Show message
-    function showMessage(text, type = 'info') {
-      const container = document.getElementById('message-container');
-      const message = document.createElement('div');
-      message.className = `message ${type}`;
-      message.textContent = text;
-      container.appendChild(message);
-
-      setTimeout(() => {
-        message.remove();
-      }, 5000);
+    function refreshData() {
+      loadData();
+      showToast('Data refreshed', 'success');
     }
 
-    // Initialize
-    loadData();
+    function showToast(message, type = 'info') {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
 
-    // Refresh every 30 seconds
-    setInterval(loadData, 30000);
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      setTimeout(() => toast.remove(), 3000);
+    }
   </script>
 </body>
 </html>
