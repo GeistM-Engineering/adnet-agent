@@ -168,12 +168,17 @@
       const { isBanner, isSquare, isCard } = options;
       const ipfsGateway = 'https://ipfs.io/ipfs/'; // TODO: Use configured IPFS gateway
 
+      // Use creative URL directly if it's already a full URL, otherwise prepend IPFS gateway
+      const creativeUrl = promotion.creative.startsWith('http://') || promotion.creative.startsWith('https://')
+        ? promotion.creative
+        : `${ipfsGateway}${promotion.creative}`;
+
       // Banner ad (728x90 or responsive)
       if (isBanner) {
         return `
           <div class="adnet-banner">
             <a href="#" class="adnet-clickable" style="display: flex; align-items: center; text-decoration: none; color: inherit; width: 100%;">
-              <img src="${ipfsGateway}${promotion.creative}" alt="${promotion.title}" style="height: 90px; width: auto; margin-right: 20px;">
+              <img src="${creativeUrl}" alt="${promotion.title}" style="height: 90px; width: auto; margin-right: 20px;">
               <div style="flex: 1;">
                 <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">${promotion.title}</div>
                 ${promotion.subtitle ? `<div style="font-size: 14px; color: #666;">${promotion.subtitle}</div>` : ''}
@@ -189,7 +194,7 @@
         return `
           <div class="adnet-square" style="width: 300px; height: 250px; border: 1px solid #ddd; overflow: hidden;">
             <a href="#" class="adnet-clickable" style="display: block; text-decoration: none; color: inherit;">
-              <img src="${ipfsGateway}${promotion.creative}" alt="${promotion.title}" style="width: 100%; height: 150px; object-fit: cover;">
+              <img src="${creativeUrl}" alt="${promotion.title}" style="width: 100%; height: 150px; object-fit: cover;">
               <div style="padding: 10px;">
                 <div style="font-size: 14px; font-weight: bold; margin-bottom: 5px;">${promotion.title}</div>
                 ${promotion.subtitle ? `<div style="font-size: 12px; color: #666; margin-bottom: 5px;">${promotion.subtitle}</div>` : ''}
@@ -205,7 +210,7 @@
         return `
           <div class="adnet-card" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 20px;">
             <a href="#" class="adnet-clickable" style="display: flex; text-decoration: none; color: inherit;">
-              <img src="${ipfsGateway}${promotion.creative}" alt="${promotion.title}" style="width: 200px; height: 150px; object-fit: cover; margin-right: 15px;">
+              <img src="${creativeUrl}" alt="${promotion.title}" style="width: 200px; height: 150px; object-fit: cover; margin-right: 15px;">
               <div style="flex: 1;">
                 <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">${promotion.title}</div>
                 ${promotion.subtitle ? `<div style="font-size: 14px; color: #666; margin-bottom: 10px;">${promotion.subtitle}</div>` : ''}
@@ -220,7 +225,7 @@
       return `
         <div class="adnet-default">
           <a href="#" class="adnet-clickable" style="display: block; text-decoration: none; color: inherit;">
-            <img src="${ipfsGateway}${promotion.creative}" alt="${promotion.title}" style="max-width: 100%; height: auto;">
+            <img src="${creativeUrl}" alt="${promotion.title}" style="max-width: 100%; height: auto;">
             <div style="padding: 10px;">
               <div style="font-weight: bold;">${promotion.title}</div>
               ${promotion.subtitle ? `<div style="color: #666;">${promotion.subtitle}</div>` : ''}
