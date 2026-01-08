@@ -1211,11 +1211,49 @@
         ]);
 
         statusData = status;
+
+        // Fetch blockchain reports for campaigns with contract addresses
+        const campaignsWithReports = await enrichCampaignsWithReports(campaigns.campaigns || []);
+        campaigns.campaigns = campaignsWithReports;
+
         updateUI(status, campaigns, history);
       } catch (error) {
         console.error('Failed to load data:', error);
         showToast('Failed to load data', 'error');
       }
+    }
+
+    async function enrichCampaignsWithReports(campaigns) {
+      // Fetch reports in parallel for campaigns with contract addresses
+      const reportPromises = campaigns.map(async (campaign) => {
+        if (!campaign.contractAddress) {
+          return { ...campaign, views: 0, clicks: 0, spent: '0' };
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/campaigns/${campaign.id}/report`);
+          if (!response.ok) {
+            console.warn(`[Admin] Failed to fetch report for ${campaign.id}`);
+            return { ...campaign, views: 0, clicks: 0, spent: '0' };
+          }
+
+          const data = await response.json();
+          const report = data.report || {};
+
+          return {
+            ...campaign,
+            views: parseInt(report.impressions) || 0,
+            clicks: parseInt(report.clicks) || 0,
+            spent: report.spent || '0',
+            batchCount: report.batchCount || 0
+          };
+        } catch (error) {
+          console.warn(`[Admin] Error fetching report for ${campaign.id}:`, error);
+          return { ...campaign, views: 0, clicks: 0, spent: '0' };
+        }
+      });
+
+      return Promise.all(reportPromises);
     }
 
     function updateUI(status, campaigns, history) {
@@ -1243,19 +1281,32 @@
         statusText.textContent = 'Blockchain Disabled';
       }
 
-      // Revenue calculations (mock for now - will come from blockchain)
-      const totalViews = history.totalViews || 0;
-      const totalClicks = history.totalClicks || 0;
-      const impressionRate = 0.001; // $0.001 per impression
-      const clickRate = 0.01; // $0.01 per click
-      const totalRevenue = (totalViews * impressionRate) + (totalClicks * clickRate);
+      // Aggregate metrics from blockchain reports (campaigns already enriched)
+      const campaignList = campaigns.campaigns || [];
+      const blockchainViews = campaignList.reduce((sum, c) => sum + (c.views || 0), 0);
+      const blockchainClicks = campaignList.reduce((sum, c) => sum + (c.clicks || 0), 0);
+      const blockchainSpent = campaignList.reduce((sum, c) => sum + parseFloat(c.spent || 0), 0);
+
+      // Use blockchain data if available, otherwise fall back to local history
+      const totalViews = blockchainViews || history.totalViews || 0;
+      const totalClicks = blockchainClicks || history.totalClicks || 0;
+
+      // Revenue from blockchain (spent is already in USDC)
+      const totalRevenue = blockchainSpent > 0 ? blockchainSpent : ((totalViews * 0.001) + (totalClicks * 0.01));
       const publisherShare = totalRevenue * 0.30;
+
+      // Pending = local history events not yet on chain
+      const localViews = history.totalViews || 0;
+      const localClicks = history.totalClicks || 0;
+      const pendingViews = Math.max(0, localViews - blockchainViews);
+      const pendingClicks = Math.max(0, localClicks - blockchainClicks);
+      const pendingRevenue = (pendingViews * 0.001 + pendingClicks * 0.01) * 0.30;
 
       document.getElementById('total-revenue').textContent = `$${totalRevenue.toFixed(2)}`;
       document.getElementById('your-earnings').textContent = `$${publisherShare.toFixed(2)}`;
-      document.getElementById('pending-revenue').textContent = `$${(totalRevenue - publisherShare).toFixed(2)}`;
+      document.getElementById('pending-revenue').textContent = `$${pendingRevenue.toFixed(2)}`;
 
-      // Metrics
+      // Metrics - show blockchain totals
       document.getElementById('page-views').textContent = formatNumber(history.totalEvents || 0);
       document.getElementById('impressions').textContent = formatNumber(totalViews);
       document.getElementById('clicks').textContent = formatNumber(totalClicks);
