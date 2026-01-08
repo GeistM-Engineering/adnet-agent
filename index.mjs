@@ -626,28 +626,71 @@ export default class AdnetAgent {
       }
     });
 
-    // Get contract report from factory
+    // Get campaign report - merges blockchain state with local metrics
     router.get('/campaigns/:campaignId/report', async (req, res) => {
       const { campaignId } = req.params;
-      console.log(`[adnet] Fetching contract report for: ${campaignId}`);
+      const domain = req.publisherDomain;
+      console.log(`[adnet] Fetching report for campaign ${campaignId} on ${domain}`);
 
       try {
-        const response = await fetch(`${this.factoryUrl}/api/campaign/${campaignId}/report`, {
-          headers: {
-            'Authorization': req.headers.authorization || ''
+        // 1. Get blockchain state from factory (budget, spent, active)
+        let blockchainState = null;
+        try {
+          const response = await fetch(`${this.factoryUrl}/api/campaign/${campaignId}/report`);
+          if (response.ok) {
+            const data = await response.json();
+            blockchainState = data.report || null;
           }
-        });
-
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({ error: 'Failed to fetch report' }));
-          return res.status(response.status).json(error);
+        } catch (err) {
+          console.warn(`[adnet] Failed to fetch blockchain state:`, err.message);
         }
 
-        const data = await response.json();
-        res.json(data);
+        // 2. Aggregate local history for this campaign
+        const { historyFile } = this.getDomainFiles(domain);
+        const history = JSON.parse(readFileSync(historyFile, 'utf8'));
+
+        // Sum up views/clicks for this specific campaign
+        let localViews = 0;
+        let localClicks = 0;
+        let batchCount = 0;
+        const batches = [];
+
+        for (const flush of (history.flushes || [])) {
+          if (flush.campaignId === campaignId) {
+            localViews += flush.views || 0;
+            localClicks += flush.clicks || 0;
+            batchCount++;
+            batches.push({
+              timestamp: flush.timestamp,
+              views: flush.views || 0,
+              clicks: flush.clicks || 0,
+              ipfsHash: flush.ipfsHash,
+              txHash: flush.txHash || null,
+              success: flush.success
+            });
+          }
+        }
+
+        // 3. Merge and return
+        res.json({
+          status: 'success',
+          campaignId,
+          report: {
+            // Local metrics (from flush history)
+            impressions: localViews.toString(),
+            clicks: localClicks.toString(),
+            batchCount,
+            batches,
+            // Blockchain state (from factory)
+            budget: blockchainState?.budget || '0',
+            spent: blockchainState?.spent || '0',
+            remaining: blockchainState?.remaining || '0',
+            active: blockchainState?.active ?? true
+          }
+        });
       } catch (error) {
-        console.error(`[adnet] Failed to fetch report for ${campaignId}:`, error.message);
-        res.status(500).json({ error: 'Failed to fetch campaign report' });
+        console.error(`[adnet] Failed to build report for ${campaignId}:`, error.message);
+        res.status(500).json({ error: 'Failed to build campaign report' });
       }
     });
 
