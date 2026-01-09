@@ -386,6 +386,14 @@ export default class AdnetAgent {
               state.lastHash
             );
           }
+
+          // Record flush to history
+          this.recordFlushHistory(domain, {
+            campaignId,
+            events,
+            ipfsHash: ipfsResult.hash,
+            success: true
+          });
         }
         results.push({ campaignId, success: !!ipfsResult });
       } catch (e) {
