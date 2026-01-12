@@ -949,13 +949,38 @@
       <div class="auth-icon">🔒</div>
       <div class="auth-title">Access Denied</div>
       <div class="auth-message">
-        Your wallet is not authorized to access this publisher dashboard.
+        Your wallet is not authorized to access the publisher dashboard.
         Only addresses on the <strong>adnet::publishers</strong> whitelist can access this page.
       </div>
       <div class="auth-wallet" id="denied-wallet">Not Connected</div>
-      <div class="auth-help">
-        Contact your administrator to request access, or
-        <a href="/" onclick="window.location.reload()">try again</a> with a different wallet.
+      <div id="request-access-ui" style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+          <div id="request-initial">
+              <p class="auth-message" style="margin-bottom: 16px;">
+                  Request access to the publisher dashboard
+              </p>
+              
+              <input type="text" id="request-name" placeholder="Your Name" 
+                     style="width: 100%; background: var(--bg-hover); border: 1px solid var(--border); 
+                            border-radius: 6px; padding: 10px; color: var(--text-primary); 
+                            margin-bottom: 12px; font-size: 14px;">
+      
+              <button class="btn btn-primary" id="btn-request-access" onclick="sendAccessRequest()" style="width: 100%;">
+                  Request Access
+              </button>
+          </div>
+      
+          <div id="request-sent" class="hidden">
+              <div class="status-badge authorized" style="margin-bottom: 12px; padding: 8px 16px;">
+                  ✓ Request Sent Successfully
+              </div>
+              <p class="auth-help">
+                  Thank you, <span id="display-req-name"></span>. Your request is pending approval.
+              </p>
+          </div>
+      </div>
+
+      <div class="auth-help" style="margin-top: 24px;">
+          Already have access? <a href="#" onclick="window.location.reload()">Refresh Page</a>
       </div>
     </div>
   </div>
@@ -1200,6 +1225,53 @@
         document.getElementById('denied-wallet').textContent = 'Error checking authorization: ' + error.message;
         document.getElementById('denied-wallet').classList.add('not-connected');
       }
+    }
+
+    async function sendAccessRequest() {
+        const nameInput = document.getElementById('request-name');
+        const nameValue = nameInput.value.trim();
+
+        if (!userWalletAddress) {
+            showToast('Please connect your wallet first', 'error');
+            return;
+        }
+
+        if (!nameValue) {
+            showToast('Please enter your name', 'error');
+            nameInput.style.borderColor = 'var(--danger)';
+            return;
+        }
+
+        const btn = document.getElementById('btn-request-access');
+
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+
+        try {
+            const response = await fetch(`${EPISTERY_BASE}/agent/epistery/white-list/request-access`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    address: userWalletAddress,
+                    listName: 'adnet::publishers',
+                    name: nameValue,
+                    message: `Publisher request from ${nameValue}`
+                })
+            });
+
+            if (response.ok) {
+                document.getElementById('display-req-name').textContent = nameValue;
+                document.getElementById('request-initial').classList.add('hidden');
+                document.getElementById('request-sent').classList.remove('hidden');
+                showToast('Request sent!', 'success');
+            } else {
+                throw new Error('Failed to send request');
+            }
+        } catch (error) {
+            showToast(error.message, 'error');
+            btn.disabled = false;
+            btn.textContent = 'Request Access';
+        }
     }
 
     async function loadData() {
