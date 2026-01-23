@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Publisher Dashboard - AdNet</title>
   <link rel="stylesheet" href="/style/static.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
@@ -946,7 +947,7 @@
   <!-- Auth Denied Screen -->
   <div id="auth-denied" class="auth-screen hidden">
     <div class="auth-card">
-      <div class="auth-icon">🔒</div>
+      <span class="material-icons auth-icon">lock</span>
       <div class="auth-title">Access Denied</div>
       <div class="auth-message">
         Your wallet is not authorized to access the publisher dashboard.
@@ -971,7 +972,7 @@
       
           <div id="request-sent" class="hidden">
               <div class="status-badge authorized" style="margin-bottom: 12px; padding: 8px 16px;">
-                  ✓ Request Sent Successfully
+                  <span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">check_circle</span> Request Sent Successfully
               </div>
               <p class="auth-help">
                   Thank you, <span id="display-req-name"></span>. Your request is pending approval.
@@ -1108,15 +1109,16 @@
       </div>
     </section>
 
-    <!-- Active Campaigns -->
+    <!-- Ad Placements -->
     <section class="campaigns-section">
       <div class="section-header">
-        <h2 class="section-title">Active Campaigns</h2>
+        <h2 class="section-title">Ad Placements</h2>
+        <span class="header-note">Track performance by ad placement location</span>
       </div>
-      <div id="campaigns-container">
+      <div id="placements-container">
         <div class="empty-state">
-          <div class="empty-state-icon">📊</div>
-          <div class="empty-state-text">Loading campaigns...</div>
+          <span class="material-icons empty-state-icon">ad_units</span>
+          <div class="empty-state-text">Loading placements...</div>
         </div>
       </div>
     </section>
@@ -1276,10 +1278,11 @@
 
     async function loadData() {
       try {
-        const [status, campaigns, history] = await Promise.all([
+        const [status, campaigns, history, placements] = await Promise.all([
           fetch(`${API_BASE}/status`).then(r => r.json()),
           fetch(`${API_BASE}/campaigns`).then(r => r.json()),
-          fetch(`${API_BASE}/history`).then(r => r.json())
+          fetch(`${API_BASE}/history`).then(r => r.json()),
+          fetch(`${API_BASE}/placements`).then(r => r.json())
         ]);
 
         statusData = status;
@@ -1288,7 +1291,7 @@
         const campaignsWithReports = await enrichCampaignsWithReports(campaigns.campaigns || []);
         campaigns.campaigns = campaignsWithReports;
 
-        updateUI(status, campaigns, history);
+        updateUI(status, campaigns, history, placements);
       } catch (error) {
         console.error('Failed to load data:', error);
         showToast('Failed to load data', 'error');
@@ -1328,7 +1331,7 @@
       return Promise.all(reportPromises);
     }
 
-    function updateUI(status, campaigns, history) {
+    function updateUI(status, campaigns, history, placements) {
       // Domain
       document.getElementById('domain-display').textContent = status.domain || 'Unknown';
 
@@ -1396,8 +1399,8 @@
       document.getElementById('chain-threshold').textContent = threshold;
       document.getElementById('chain-fill').style.width = `${(chainLength / threshold) * 100}%`;
 
-      // Campaigns
-      renderCampaigns(campaigns.campaigns || []);
+      // Placements
+      renderPlacements(placements?.placements || []);
 
       // History
       renderHistory(history.flushes || []);
@@ -1412,7 +1415,7 @@
       if (!campaigns.length) {
         container.innerHTML = `
           <div class="empty-state">
-            <div class="empty-state-icon">📢</div>
+            <span class="material-icons empty-state-icon">campaign</span>
             <div class="empty-state-text">No active campaigns. Share your wallet address with advertisers to get started.</div>
           </div>
         `;
@@ -1452,6 +1455,63 @@
                   <input type="checkbox" ${campaign.enabled !== false ? 'checked' : ''} onchange="toggleCampaign('${campaign.id}', this.checked)">
                   <span class="toggle-slider"></span>
                 </label>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderPlacements(placements) {
+      const container = document.getElementById('placements-container');
+
+      if (!placements.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <span class="material-icons" style="font-size: 48px; color: var(--text-secondary); margin-bottom: 12px;">ad_units</span>
+            <div class="empty-state-text">No placements yet. Add ad slots with the <code>adnet-entry</code> class to start tracking.</div>
+          </div>
+        `;
+        return;
+      }
+
+      const typeIcons = {
+        banner: 'view_day',
+        square: 'crop_square',
+        card: 'article',
+        default: 'widgets'
+      };
+
+      container.innerHTML = placements.map(placement => {
+        const icon = typeIcons[placement.type] || typeIcons.default;
+        const impressions = placement.totals?.impressions || 0;
+        const clicks = placement.totals?.clicks || 0;
+        const ctr = placement.ctr || '0.00';
+
+        return `
+          <div class="campaign-card" data-id="${placement.id}">
+            <div class="campaign-creative" style="display: flex; align-items: center; justify-content: center; background: var(--bg-hover);">
+              <span class="material-icons" style="font-size: 32px; color: var(--primary);">${icon}</span>
+            </div>
+            <div class="campaign-info">
+              <div class="campaign-brand">${placement.id}</div>
+              <div class="campaign-meta">
+                <span>${placement.type}</span>
+                <span>${placement.pageUrl || '/'}</span>
+              </div>
+            </div>
+            <div class="campaign-stats">
+              <div class="campaign-stat">
+                <div class="campaign-stat-value">${formatNumber(impressions)}</div>
+                <div class="campaign-stat-label">Impressions</div>
+              </div>
+              <div class="campaign-stat">
+                <div class="campaign-stat-value">${formatNumber(clicks)}</div>
+                <div class="campaign-stat-label">Clicks</div>
+              </div>
+              <div class="campaign-stat">
+                <div class="campaign-stat-value">${ctr}%</div>
+                <div class="campaign-stat-label">CTR</div>
               </div>
             </div>
           </div>

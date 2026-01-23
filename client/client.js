@@ -135,6 +135,15 @@
       const isSquare = slotElement.classList.contains('adnet-entry-square');
       const isCard = slotElement.classList.contains('adnet-entry-card');
 
+      // Determine placement info for publisher reporting
+      const placementType = isBanner ? 'banner' : isSquare ? 'square' : isCard ? 'card' : 'default';
+      const placementId = slotElement.dataset.placementId || `${placementType}-${slotIndex}`;
+      const placement = {
+        id: placementId,
+        type: placementType,
+        pageUrl: window.location.pathname
+      };
+
       // Build ad HTML
       const adHtml = this.buildAdHtml(campaignDetails, promotion, { isBanner, isSquare, isCard });
 
@@ -149,22 +158,23 @@
       this.renderedAds.set(slotIndex, {
         campaignId: campaign.id,
         promotionId: promotion.promotionId,
-        landingUrl: landingUrl
+        landingUrl: landingUrl,
+        placement: placement
       });
 
-      // Record view event
-      await this.recordEvent(campaign.id, promotion.promotionId, 'view');
+      // Record view event with placement info
+      await this.recordEvent(campaign.id, promotion.promotionId, 'view', placement);
 
       // Attach click handler
       const clickTarget = slotElement.querySelector('.adnet-clickable');
       if (clickTarget) {
         clickTarget.addEventListener('click', async (e) => {
           e.preventDefault();
-          await this.handleAdClick(campaign.id, promotion.promotionId, landingUrl);
+          await this.handleAdClick(campaign.id, promotion.promotionId, landingUrl, placement);
         });
       }
 
-      console.log(`[Adnet] Rendered ad for campaign ${campaign.id}, promotion ${promotion.promotionId}`);
+      console.log(`[Adnet] Rendered ad for campaign ${campaign.id}, placement ${placementId}`);
     }
 
     buildAdHtml(campaign, promotion, options = {}) {
@@ -245,7 +255,7 @@
       `;
     }
 
-    async recordEvent(campaignId, promotionId, type) {
+    async recordEvent(campaignId, promotionId, type, placement = null) {
       try {
         const timestamp = Date.now();
         let signature = null;
@@ -282,7 +292,8 @@
             timestamp,
             userAddress: this.userAddress,
             signature,
-            notabotScore
+            notabotScore,
+            placement
           })
         });
 
@@ -299,11 +310,11 @@
       }
     }
 
-    async handleAdClick(campaignId, promotionId, landingUrl) {
+    async handleAdClick(campaignId, promotionId, landingUrl, placement = null) {
       console.log('[Adnet] Ad clicked');
 
-      // Record click event
-      await this.recordEvent(campaignId, promotionId, 'click');
+      // Record click event with placement info
+      await this.recordEvent(campaignId, promotionId, 'click', placement);
 
       // Navigate to landing page after a brief delay (to ensure event is recorded)
       setTimeout(() => {

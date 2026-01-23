@@ -132,6 +132,7 @@ export default class AdnetAgent {
     const eventsFile = path.join(domainDir, 'events.json');
     const batchFile = path.join(domainDir, 'batch.json');
     const historyFile = path.join(domainDir, 'history.json');
+    const placementsFile = path.join(domainDir, 'placements.json');
 
     // Ensure domain directory exists
     if (!existsSync(domainDir)) {
@@ -168,7 +169,15 @@ export default class AdnetAgent {
       }));
     }
 
-    return { eventsFile, batchFile, historyFile, domainDir };
+    // Initialize placements file (publisher placement metrics)
+    if (!existsSync(placementsFile)) {
+      writeFileSync(placementsFile, JSON.stringify({
+        placements: {},
+        updated: Date.now()
+      }));
+    }
+
+    return { eventsFile, batchFile, historyFile, placementsFile, domainDir };
   }
 
   /**
@@ -242,6 +251,66 @@ export default class AdnetAgent {
     history.totalClicks += clicks;
 
     writeFileSync(historyFile, JSON.stringify(history, null, 2));
+  }
+
+  /**
+   * Update placement metrics for publisher reporting
+   */
+  updatePlacementMetrics(domain, placement, eventType) {
+    if (!placement || !placement.id) return;
+
+    const { placementsFile } = this.getDomainFiles(domain);
+    const data = JSON.parse(readFileSync(placementsFile, 'utf8'));
+
+    const placementId = placement.id;
+    const today = new Date().toISOString().split('T')[0];
+
+    // Initialize placement if new
+    if (!data.placements[placementId]) {
+      data.placements[placementId] = {
+        id: placementId,
+        type: placement.type || 'unknown',
+        pageUrl: placement.pageUrl || '',
+        firstSeen: new Date().toISOString(),
+        totals: { impressions: 0, clicks: 0 },
+        daily: {}
+      };
+    }
+
+    const p = data.placements[placementId];
+
+    // Update page URL if provided (might change)
+    if (placement.pageUrl) {
+      p.pageUrl = placement.pageUrl;
+    }
+
+    // Initialize daily stats if new day
+    if (!p.daily[today]) {
+      p.daily[today] = { impressions: 0, clicks: 0 };
+    }
+
+    // Increment counters
+    if (eventType === 'view') {
+      p.totals.impressions++;
+      p.daily[today].impressions++;
+    } else if (eventType === 'click') {
+      p.totals.clicks++;
+      p.daily[today].clicks++;
+    }
+
+    p.lastSeen = new Date().toISOString();
+    data.updated = Date.now();
+
+    writeFileSync(placementsFile, JSON.stringify(data, null, 2));
+  }
+
+  /**
+   * Get placement metrics for a domain
+   */
+  getPlacementMetrics(domain) {
+    const { placementsFile } = this.getDomainFiles(domain);
+    const data = JSON.parse(readFileSync(placementsFile, 'utf8'));
+    return data.placements;
   }
 
   /**
@@ -705,7 +774,7 @@ export default class AdnetAgent {
     // Record event (view or click)
     router.post('/record', async (req, res) => {
       try {
-        const { campaignId, promotionId, type, timestamp, userAddress, signature, notabotScore } = req.body;
+        const { campaignId, promotionId, type, timestamp, userAddress, signature, notabotScore, placement } = req.body;
         const domain = req.publisherDomain; // Set by your middleware
 
         // 1. Validation
@@ -731,14 +800,20 @@ export default class AdnetAgent {
           timestamp: new Date().toISOString(),
           metadata: {
             userAgent: req.get('User-Agent'),
-            referrer: req.get('Referrer')
+            referrer: req.get('Referrer'),
+            placement: placement || null
           }
         };
-    
+
         // 4. Add to the Domain's Cryptographic Chain
         // This function hashes the event and links it to the previousHash
         const chainedEvent = this.addEventToChain(domain, event);
         const state = this.getDomainState(domain);
+
+        // 5. Update placement metrics for publisher reporting
+        if (placement) {
+          this.updatePlacementMetrics(domain, placement, type);
+        }
 
         res.json({
           status: 'success',
@@ -841,6 +916,85 @@ export default class AdnetAgent {
           threshold: this.threshold,
           factoryUrl: this.factoryUrl,
           ipfsUrl: this.ipfsUrl
+        }
+      });
+    });
+
+    // Get all placements with metrics (for publisher dashboard)
+    router.get('/placements', (req, res) => {
+      const domain = req.publisherDomain;
+      const placements = this.getPlacementMetrics(domain);
+
+      // Convert to array and calculate CTR
+      const placementList = Object.values(placements).map(p => ({
+        ...p,
+        ctr: p.totals.impressions > 0
+          ? ((p.totals.clicks / p.totals.impressions) * 100).toFixed(2)
+          : '0.00'
+      }));
+
+      // Sort by impressions descending
+      placementList.sort((a, b) => b.totals.impressions - a.totals.impressions);
+
+      res.json({
+        status: 'success',
+        domain,
+        placements: placementList,
+        count: placementList.length
+      });
+    });
+
+    // Get detailed report for a specific placement
+    router.get('/placements/:placementId/report', (req, res) => {
+      const domain = req.publisherDomain;
+      const { placementId } = req.params;
+      const { days = 7 } = req.query;
+
+      const placements = this.getPlacementMetrics(domain);
+      const placement = placements[placementId];
+
+      if (!placement) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Placement not found'
+        });
+      }
+
+      // Calculate date range
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - parseInt(days));
+
+      // Build daily metrics for the date range
+      const dailyMetrics = [];
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        const dayData = placement.daily[dateStr] || { impressions: 0, clicks: 0 };
+        dailyMetrics.push({
+          date: dateStr,
+          impressions: dayData.impressions,
+          clicks: dayData.clicks,
+          ctr: dayData.impressions > 0
+            ? ((dayData.clicks / dayData.impressions) * 100).toFixed(2)
+            : '0.00'
+        });
+      }
+
+      res.json({
+        status: 'success',
+        placement: {
+          id: placement.id,
+          type: placement.type,
+          pageUrl: placement.pageUrl,
+          firstSeen: placement.firstSeen,
+          lastSeen: placement.lastSeen,
+          totals: {
+            ...placement.totals,
+            ctr: placement.totals.impressions > 0
+              ? ((placement.totals.clicks / placement.totals.impressions) * 100).toFixed(2)
+              : '0.00'
+          },
+          daily: dailyMetrics
         }
       });
     });
