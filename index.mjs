@@ -529,8 +529,8 @@ export default class AdnetAgent {
           return { valid: true, address, isDomainAdmin: true, domain };
         }
 
-        // Check adnet publishers list
-        const isPublisher = await this.isListedCaseInsensitive(address, 'adnet::publishers');
+        // Check domain publishers list
+        const isPublisher = await this.isListedCaseInsensitive(address, `${domain}::publishers`);
         if (isPublisher) {
           return { valid: true, address, isPublisher: true, domain };
         }

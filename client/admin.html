@@ -951,7 +951,7 @@
       <div class="auth-title">Access Denied</div>
       <div class="auth-message">
         Your wallet is not authorized to access the publisher dashboard.
-        Only addresses on the <strong>adnet::publishers</strong> whitelist can access this page.
+        Only addresses on the <strong id="publisher-list-name">::publishers</strong> whitelist can access this page.
       </div>
       <div class="auth-wallet" id="denied-wallet">Not Connected</div>
       <div id="request-access-ui" style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
@@ -1163,6 +1163,11 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
+      // Set domain-specific list name in UI
+      const listNameEl = document.getElementById('publisher-list-name');
+      if (listNameEl) {
+        listNameEl.textContent = `${window.location.hostname}::publishers`;
+      }
       await checkAuthentication();
     });
 
@@ -1255,7 +1260,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     address: userWalletAddress,
-                    listName: 'adnet::publishers',
+                    listName: `${window.location.hostname}::publishers`,
                     agentName: 'adnet',
                     message: `Publisher request from ${nameValue}`
                 })
