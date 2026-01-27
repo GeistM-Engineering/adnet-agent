@@ -1250,13 +1250,13 @@
         btn.textContent = 'Sending...';
 
         try {
-            const response = await fetch(`${EPISTERY_BASE}/agent/epistery/white-list/request-access`, {
+            const response = await fetch(`${EPISTERY_BASE}/.well-known/epistery/whitelist/request-access`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     address: userWalletAddress,
                     listName: 'adnet::publishers',
-                    name: nameValue,
+                    agentName: 'adnet',
                     message: `Publisher request from ${nameValue}`
                 })
             });
