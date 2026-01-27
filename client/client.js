@@ -186,70 +186,64 @@
         ? promotion.creative
         : `${ipfsGateway}${promotion.creative}`;
 
-      // Banner ad (728x90 or responsive)
+      const wrapperStyle = "width: 100%; text-decoration: none; color: inherit; display: block;";
+
+      const renderText = (text, style) => {
+        if (!text || text.trim() === "") return "";
+        return `<div style="${style}">${text}</div>`;
+      };
+
       if (isBanner) {
         return `
           <div class="adnet-banner">
-            <a href="#" class="adnet-clickable" style="display: flex; align-items: center; text-decoration: none; color: inherit; width: 100%;">
-              <img src="${creativeUrl}" alt="${promotion.title || 'Ad'}" style="height: 90px; width: auto; margin-right: 20px;">
-              ${promotion.title || promotion.subtitle ? `
-              <div style="flex: 1;">
-                ${promotion.title ? `<div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">${promotion.title}</div>` : ''}
-                ${promotion.subtitle ? `<div style="font-size: 14px; color: #666;">${promotion.subtitle}</div>` : ''}
-                <div style="font-size: 11px; color: #999; margin-top: 5px;">Sponsored</div>
+            <a href="#" class="adnet-clickable" style="${wrapperStyle} display: flex; align-items: center;">
+              <img src="${creativeUrl}" style="height: 60px; width: auto; max-width: 40%; object-fit: contain;">
+              <div style="flex: 1; padding-left: 15px;">
+                ${renderText(promotion.title, "font-size: 14px; font-weight: bold; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;")}
+                <div style="font-size: 11px; color: #999;">Sponsored</div>
               </div>
-              ` : ''}
             </a>
           </div>
         `;
       }
 
-      // Square ad (300x250)
       if (isSquare) {
         return `
-          <div class="adnet-square" style="width: 300px; height: 250px; border: 1px solid #ddd; overflow: hidden;">
-            <a href="#" class="adnet-clickable" style="display: block; text-decoration: none; color: inherit;">
-              <img src="${creativeUrl}" alt="${promotion.title || 'Ad'}" style="width: 100%; height: ${promotion.title || promotion.subtitle ? '150px' : '100%'}; object-fit: cover;">
-              ${promotion.title || promotion.subtitle ? `
+          <div class="adnet-square" style="width: 100%; border: 1px solid #ddd; background: #fff;">
+            <a href="#" class="adnet-clickable" style="${wrapperStyle}">
+              <div style="width: 100%; aspect-ratio: 1 / 1; overflow: hidden;">
+                <img src="${creativeUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+              </div>
               <div style="padding: 10px;">
-                ${promotion.title ? `<div style="font-size: 14px; font-weight: bold; margin-bottom: 5px;">${promotion.title}</div>` : ''}
-                ${promotion.subtitle ? `<div style="font-size: 12px; color: #666; margin-bottom: 5px;">${promotion.subtitle}</div>` : ''}
+                ${renderText(promotion.title, "font-size: 14px; font-weight: bold; margin-bottom: 2px;")}
                 <div style="font-size: 10px; color: #999;">Sponsored</div>
               </div>
-              ` : ''}
             </a>
           </div>
         `;
       }
 
-      // Card ad (similar to article preview)
       if (isCard) {
         return `
-          <div class="adnet-card" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 20px;">
-            <a href="#" class="adnet-clickable" style="display: flex; text-decoration: none; color: inherit;">
-              <img src="${creativeUrl}" alt="${promotion.title || 'Ad'}" style="width: 200px; height: 150px; object-fit: cover; margin-right: 15px;">
-              <div style="flex: 1;">
-                ${promotion.title ? `<div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">${promotion.title}</div>` : ''}
-                ${promotion.subtitle ? `<div style="font-size: 14px; color: #666; margin-bottom: 10px;">${promotion.subtitle}</div>` : ''}
-                <div style="font-size: 11px; color: #999;">Sponsored by ${campaign.brand}</div>
+          <div class="adnet-card" style="width: 100%; border: 1px solid #ddd; background: #fff;">
+            <a href="#" class="adnet-clickable" style="${wrapperStyle}">
+              <div style="width: 100%; aspect-ratio: 16 / 9; overflow: hidden;">
+                <img src="${creativeUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+              </div>
+              <div style="padding: 15px;">
+                ${renderText(promotion.title, "font-size: 16px; font-weight: bold; margin-bottom: 5px;")}
+                ${renderText(promotion.subtitle, "font-size: 12px; color: #666; margin-bottom: 10px;")}
+                <div style="font-size: 11px; color: #999;">Sponsored by ${campaign.brand || 'Partner'}</div>
               </div>
             </a>
           </div>
         `;
       }
 
-      // Default ad rendering
       return `
         <div class="adnet-default">
-          <a href="#" class="adnet-clickable" style="display: block; text-decoration: none; color: inherit;">
-            <img src="${creativeUrl}" alt="${promotion.title || 'Ad'}" style="max-width: 100%; height: auto;">
-            ${promotion.title || promotion.subtitle ? `
-            <div style="padding: 10px;">
-              ${promotion.title ? `<div style="font-weight: bold;">${promotion.title}</div>` : ''}
-              ${promotion.subtitle ? `<div style="color: #666;">${promotion.subtitle}</div>` : ''}
-              <div style="font-size: 11px; color: #999; margin-top: 5px;">Sponsored</div>
-            </div>
-            ` : ''}
+          <a href="#" class="adnet-clickable" style="${wrapperStyle}">
+            <img src="${creativeUrl}" style="width: 100%; height: auto; display: block;">
           </a>
         </div>
       `;
