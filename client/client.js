@@ -27,6 +27,7 @@
       this.renderedAds = new Map(); // Track which ads have been rendered
       this.userAddress = null;
       this.witness = null;
+      this.lastWidth = window.innerWidth;
       this.init();
     }
 
@@ -34,12 +35,15 @@
       console.log('[Adnet] Initializing agent client');
 
       await this.connectEpistery();
-
-      // Fetch available campaigns
       await this.fetchCampaigns();
-
-      // Find and populate ad placeholders
       this.populateAdSlots();
+
+      window.addEventListener('resize', () => {
+        if (Math.abs(window.innerWidth - this.lastWidth) > 50) {
+          this.lastWidth = window.innerWidth;
+          this.populateAdSlots();
+        }
+      });
     }
 
     async connectEpistery() {
@@ -51,12 +55,8 @@
       try {
         this.witness = await Witness.connect({ rootPath: EPISTERY_BASE });
         const status = this.witness.getStatus();
-
-        if (status.client && status.client.address) {
+        if (status.client?.address) {
           this.userAddress = status.client.address;
-          console.log('[Adnet] User wallet connected:', this.userAddress);
-        } else {
-          console.log('[Adnet] No user wallet found');
         }
       } catch (error) {
         console.warn('[Adnet] Failed to connect to Epistery:', error);
@@ -93,7 +93,6 @@
     }
 
     populateAdSlots() {
-      // Find all divs with class 'adnet-entry'
       const adSlots = document.querySelectorAll('.adnet-entry');
 
       if (adSlots.length === 0) {
@@ -109,144 +108,95 @@
     }
 
     async renderAd(slotElement, slotIndex) {
-      if (this.campaigns.length === 0) {
-        console.log('[Adnet] No campaigns available');
-        return;
-      }
+      if (this.campaigns.length === 0) return;
 
-      // Select a random campaign
+      // 1. DYNAMIC SENSING: Measure the slot
+      const width = slotElement.offsetWidth;
+      const isVertical = width < 220; // Side Rails
+      const isWide = width > 500;     // Article Banners
+
+      // Select Campaign & Promotion
       const campaign = this.campaigns[Math.floor(Math.random() * this.campaigns.length)];
+      const details = await this.getCampaignDetails(campaign.id);
+      if (!details?.promotions?.length) return;
+      const promotion = details.promotions[Math.floor(Math.random() * details.promotions.length)];
 
-      // Get full campaign details with promotions
-      const campaignDetails = await this.getCampaignDetails(campaign.id);
-
-      if (!campaignDetails || !campaignDetails.promotions || campaignDetails.promotions.length === 0) {
-        console.log('[Adnet] Campaign has no promotions');
-        return;
-      }
-
-      // Select a random promotion
-      const promotion = campaignDetails.promotions[
-        Math.floor(Math.random() * campaignDetails.promotions.length)
-      ];
-
-      // Determine ad type from slot classes
-      const isBanner = slotElement.classList.contains('adnet-entry-banner');
-      const isSquare = slotElement.classList.contains('adnet-entry-square');
-      const isCard = slotElement.classList.contains('adnet-entry-card');
-
-      // Determine placement info for publisher reporting
-      const placementType = isBanner ? 'banner' : isSquare ? 'square' : isCard ? 'card' : 'default';
+      // Determine Placement Info
+      const placementType = isVertical ? 'vertical' : (isWide ? 'horizontal' : 'rectangle');
       const placementId = slotElement.dataset.placementId || `${placementType}-${slotIndex}`;
-      const placement = {
-        id: placementId,
-        type: placementType,
-        pageUrl: window.location.pathname
-      };
+      const placement = { id: placementId, type: placementType, pageUrl: window.location.pathname };
 
-      // Build ad HTML
-      const adHtml = this.buildAdHtml(campaignDetails, promotion, { isBanner, isSquare, isCard });
+      // 2. BUILD HTML (Dynamic Layout)
+      slotElement.innerHTML = this.buildDynamicHtml(details, promotion, { isVertical, isWide });
 
-      slotElement.innerHTML = adHtml;
-      slotElement.dataset.campaignId = campaign.id;
-      slotElement.dataset.promotionId = promotion.promotionId;
+      // 3. TRACKING & EVENTS
+      const landingUrl = promotion.landingUrl || details.landingUrl;
+      this.renderedAds.set(slotIndex, { campaignId: campaign.id, promotionId: promotion.promotionId, landingUrl, placement });
 
-      // Use promotion-level landingUrl, fall back to campaign-level
-      const landingUrl = promotion.landingUrl || campaignDetails.landingUrl;
-
-      // Track that we've rendered this ad
-      this.renderedAds.set(slotIndex, {
-        campaignId: campaign.id,
-        promotionId: promotion.promotionId,
-        landingUrl: landingUrl,
-        placement: placement
-      });
-
-      // Record view event with placement info
       await this.recordEvent(campaign.id, promotion.promotionId, 'view', placement);
 
-      // Attach click handler
       const clickTarget = slotElement.querySelector('.adnet-clickable');
       if (clickTarget) {
-        clickTarget.addEventListener('click', async (e) => {
+        clickTarget.onclick = async (e) => {
           e.preventDefault();
           await this.handleAdClick(campaign.id, promotion.promotionId, landingUrl, placement);
-        });
+        };
       }
-
-      console.log(`[Adnet] Rendered ad for campaign ${campaign.id}, placement ${placementId}`);
     }
 
-    buildAdHtml(campaign, promotion, options = {}) {
-      const { isBanner, isSquare, isCard } = options;
-      const ipfsGateway = 'https://ipfs.io/ipfs/'; // TODO: Use configured IPFS gateway
-
+    buildDynamicHtml(campaign, promotion, context) {
+      const { isVertical, isWide } = context;
+      const ipfsGateway = 'https://ipfs.io/ipfs/';
       // Use creative URL directly if it's already a full URL, otherwise prepend IPFS gateway
       const creativeUrl = promotion.creative.startsWith('http://') || promotion.creative.startsWith('https://')
         ? promotion.creative
         : `${ipfsGateway}${promotion.creative}`;
 
-      const wrapperStyle = "width: 100%; text-decoration: none; color: inherit; display: block;";
+      const wrapperStyle = "width: 100%; text-decoration: none; color: inherit; display: block; border: 1px solid #ddd; background: #fff;";
 
       const renderText = (text, style) => {
         if (!text || text.trim() === "") return "";
         return `<div style="${style}">${text}</div>`;
       };
 
-      if (isBanner) {
+      if (isVertical) {
+        // Skyscraper / Side Rail layout (Tall)
         return `
-          <div class="adnet-banner">
-            <a href="#" class="adnet-clickable" style="${wrapperStyle} display: flex; align-items: center;">
-              <img src="${creativeUrl}" style="height: 60px; width: auto; max-width: 40%; object-fit: contain;">
-              <div style="flex: 1; padding-left: 15px;">
-                ${renderText(promotion.title, "font-size: 14px; font-weight: bold; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;")}
-                <div style="font-size: 11px; color: #999;">Sponsored</div>
-              </div>
-            </a>
-          </div>
-        `;
-      }
-
-      if (isSquare) {
-        return `
-          <div class="adnet-square" style="width: 100%; border: 1px solid #ddd; background: #fff;">
-            <a href="#" class="adnet-clickable" style="${wrapperStyle}">
-              <div style="width: 100%; aspect-ratio: 1 / 1; overflow: hidden;">
-                <img src="${creativeUrl}" style="width: 100%; height: 100%; object-fit: cover;">
-              </div>
-              <div style="padding: 10px;">
-                ${renderText(promotion.title, "font-size: 14px; font-weight: bold; margin-bottom: 2px;")}
-                <div style="font-size: 10px; color: #999;">Sponsored</div>
-              </div>
-            </a>
-          </div>
-        `;
-      }
-
-      if (isCard) {
-        return `
-          <div class="adnet-card" style="width: 100%; border: 1px solid #ddd; background: #fff;">
-            <a href="#" class="adnet-clickable" style="${wrapperStyle}">
-              <div style="width: 100%; aspect-ratio: 16 / 9; overflow: hidden;">
-                <img src="${creativeUrl}" style="width: 100%; height: 100%; object-fit: cover;">
-              </div>
-              <div style="padding: 15px;">
-                ${renderText(promotion.title, "font-size: 16px; font-weight: bold; margin-bottom: 5px;")}
-                ${renderText(promotion.subtitle, "font-size: 12px; color: #666; margin-bottom: 10px;")}
-                <div style="font-size: 11px; color: #999;">Sponsored by ${campaign.brand || 'Partner'}</div>
-              </div>
-            </a>
-          </div>
-        `;
-      }
-
-      return `
-        <div class="adnet-default">
           <a href="#" class="adnet-clickable" style="${wrapperStyle}">
-            <img src="${creativeUrl}" style="width: 100%; height: auto; display: block;">
-          </a>
-        </div>
-      `;
+            <div style="width: 100%; aspect-ratio: 160 / 300; overflow: hidden; background: #000;">
+              <img src="${creativeUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <div style="padding: 12px;">
+              ${renderText(promotion.title, "font-size: 14px; font-weight: bold; margin-bottom: 5px;")}
+              <div style="font-size: 10px; color: #999;">Sponsored</div>
+            </div>
+          </a>`;
+      }
+
+      if (isWide) {
+        // Horizontal Article Banner layout
+        return `
+          <a href="#" class="adnet-clickable" style="${wrapperStyle} display: flex; align-items: center; padding: 10px;">
+            <img src="${creativeUrl}" style="height: 60px; width: auto; max-width: 40%; object-fit: contain; margin-right: 15px;">
+            <div style="flex: 1;">
+              ${renderText(promotion.title, "font-size: 16px; font-weight: bold;")}
+              ${renderText(promotion.subtitle, "font-size: 13px; color: #666;")}
+              <div style="font-size: 10px; color: #999;">Sponsored</div>
+            </div>
+          </a>`;
+      }
+
+      // Default / Rectangle layout
+      return `
+        <a href="#" class="adnet-clickable" style="${wrapperStyle}">
+          <div style="width: 100%; aspect-ratio: 16 / 9; overflow: hidden;">
+            <img src="${creativeUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+          </div>
+          <div style="padding: 15px;">
+            ${renderText(promotion.title, "font-size: 15px; font-weight: bold;")}
+            <div style="font-size: 11px; color: #999;">Sponsored by ${campaign.brand || 'Partner'}</div>
+          </div>
+        </a>`;
     }
 
     async recordEvent(campaignId, promotionId, type, placement = null) {
