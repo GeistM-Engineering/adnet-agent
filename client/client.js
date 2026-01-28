@@ -36,12 +36,11 @@
 
       await this.connectEpistery();
       await this.fetchCampaigns();
-      
-      // Step A: Auto-find whitespace and inject slots (Site-Agnostic)
-      this.autoInjectSlots();
-      
-      // Step B: Render ads into all slots (manual or auto-injected)
-      this.populateAdSlots();
+
+      window.addEventListener('load', () => {
+        this.autoInjectSlots();
+        this.populateAdSlots();
+      });
 
       // Step C: Listen for resizing (50px threshold to prevent excessive firing)
       window.addEventListener('resize', () => {
