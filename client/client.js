@@ -24,7 +24,7 @@
   class AdnetClient {
     constructor() {
       this.campaigns = [];
-      this.renderedAds = new Map(); // Track which ads have been rendered
+      this.detailsCache = new Map();
       this.userAddress = null;
       this.witness = null;
       this.lastWidth = window.innerWidth;
@@ -32,12 +32,18 @@
     }
 
     async init() {
-      console.log('[Adnet] Initializing agent client');
+      console.log('[Adnet] Initializing Universal Agent');
 
       await this.connectEpistery();
       await this.fetchCampaigns();
+      
+      // Step A: Auto-find whitespace and inject slots (Site-Agnostic)
+      this.autoInjectSlots();
+      
+      // Step B: Render ads into all slots (manual or auto-injected)
       this.populateAdSlots();
 
+      // Step C: Listen for resizing (50px threshold to prevent excessive firing)
       window.addEventListener('resize', () => {
         if (Math.abs(window.innerWidth - this.lastWidth) > 50) {
           this.lastWidth = window.innerWidth;
@@ -57,6 +63,7 @@
         const status = this.witness.getStatus();
         if (status.client?.address) {
           this.userAddress = status.client.address;
+          console.log('[Adnet] User connected:', this.userAddress);
         }
       } catch (error) {
         console.warn('[Adnet] Failed to connect to Epistery:', error);
@@ -77,18 +84,55 @@
       }
     }
 
-    async getCampaignDetails(campaignId) {
+    async getCachedDetails(id) {
+      if (this.detailsCache.has(id)) return this.detailsCache.get(id);
       try {
-        const response = await fetch(`${AGENT_BASE}/campaigns/${campaignId}`);
-        if (!response.ok) {
-          console.error('[Adnet] Failed to fetch campaign details:', response.status);
-          return null;
-        }
+        const response = await fetch(`${AGENT_BASE}/campaigns/${id}`);
         const data = await response.json();
+        if (data) this.detailsCache.set(id, data);
         return data;
       } catch (error) {
         console.error('[Adnet] Failed to fetch campaign details:', error);
         return null;
+      }
+    }
+
+    /**
+     * UNIVERSAL WHITESPACE SENSING
+     * Scans the page for content containers and injects ad slots 
+     * where they will look most like native "Recommended" content.
+     */
+    autoInjectSlots() {
+      const contentSelectors = ['article', '.post-content', '.entry-content', 'main', '#content', '.content-area'];
+      let container = null;
+      for (const selector of contentSelectors) {
+        container = document.querySelector(selector);
+        if (container) break;
+      }
+
+      // 1. In-Article Native Injection
+      if (container && !document.getElementById('adnet-auto-article')) {
+        const paragraphs = container.querySelectorAll('p');
+        if (paragraphs.length > 3) {
+          const midAd = document.createElement('div');
+          midAd.id = 'adnet-auto-article';
+          midAd.className = 'adnet-entry';
+          midAd.style.margin = '30px 0';
+          // Insert after 2nd paragraph for maximum visibility
+          paragraphs[1].parentNode.insertBefore(midAd, paragraphs[1].nextSibling);
+        }
+      }
+
+      // 2. Sidebar Rail Injection (Desktop Only)
+      if (window.innerWidth > 1250 && !document.getElementById('adnet-left-rail')) {
+        const leftSpace = container ? container.getBoundingClientRect().left : 0;
+        if (leftSpace > 180) {
+          const rail = document.createElement('div');
+          rail.id = 'adnet-left-rail';
+          rail.className = 'adnet-entry';
+          rail.style.cssText = `position:fixed; left:15px; top:180px; width:160px; z-index:100;`;
+          document.body.appendChild(rail);
+        }
       }
     }
 
@@ -109,92 +153,98 @@
 
     async renderAd(slotElement, slotIndex) {
       if (this.campaigns.length === 0) return;
-
-      // 1. DYNAMIC SENSING: Measure the slot
-      const width = slotElement.offsetWidth;
-      const isVertical = width < 220; // Side Rails
-      const isWide = width > 500;     // Article Banners
-
-      // Select Campaign & Promotion
-      const campaign = this.campaigns[Math.floor(Math.random() * this.campaigns.length)];
-      const details = await this.getCampaignDetails(campaign.id);
-      if (!details?.promotions?.length) return;
-      const promotion = details.promotions[Math.floor(Math.random() * details.promotions.length)];
-
-      // Determine Placement Info
-      const placementType = isVertical ? 'vertical' : (isWide ? 'horizontal' : 'rectangle');
-      const placementId = slotElement.dataset.placementId || `${placementType}-${slotIndex}`;
-      const placement = { id: placementId, type: placementType, pageUrl: window.location.pathname };
-
-      // 2. BUILD HTML (Dynamic Layout)
-      slotElement.innerHTML = this.buildDynamicHtml(details, promotion, { isVertical, isWide });
-
-      // 3. TRACKING & EVENTS
-      const landingUrl = promotion.landingUrl || details.landingUrl;
-      this.renderedAds.set(slotIndex, { campaignId: campaign.id, promotionId: promotion.promotionId, landingUrl, placement });
-
-      await this.recordEvent(campaign.id, promotion.promotionId, 'view', placement);
-
+  
+      // 1. STYLE SENSING
+      // Find a nearby heading or paragraph to copy styles from
+      const sampleText = document.querySelector('h1, h2, h3, .entry-title, .post-title') || slotElement.parentElement;
+      const computed = window.getComputedStyle(sampleText);
+      
+      const siteStyles = {
+          fontFamily: computed.fontFamily,
+          titleColor: computed.color,
+          fontSize: computed.fontSize,
+          lineHeight: computed.lineHeight
+      };
+  
+      const width = slotElement.offsetWidth || 300;
+      const isVertical = width < 220;
+      const isWide = width > 500;
+  
+      // 2. AD SELECTION
+      let selectedPromo = null;
+      let selectedCampaign = null;
+      const existingId = slotElement.dataset.campaignId;
+      const existingPromoId = slotElement.dataset.promotionId;
+  
+      if (existingId && existingPromoId) {
+          selectedCampaign = await this.getCachedDetails(existingId);
+          selectedPromo = selectedCampaign?.promotions?.find(p => p.promotionId === existingPromoId);
+      }
+  
+      if (!selectedPromo) {
+          const shuffled = [...this.campaigns].sort(() => 0.5 - Math.random());
+          for (const camp of shuffled) {
+              const details = await this.getCachedDetails(camp.id);
+              const valid = details?.promotions?.find(p => p.title && p.title.trim() !== "");
+              if (valid) {
+                  selectedPromo = valid;
+                  selectedCampaign = details;
+                  break;
+              }
+          }
+      }
+  
+      if (!selectedPromo) return;
+  
+      // 3. INJECT
+      slotElement.dataset.campaignId = selectedCampaign.id;
+      slotElement.dataset.promotionId = selectedPromo.promotionId;
+      
+      // Pass siteStyles into the HTML builder
+      slotElement.innerHTML = this.buildDynamicHtml(selectedCampaign, selectedPromo, { isVertical, isWide, siteStyles });
+  
+      // 4. VIEWABILITY (Intersection Observer)
+      if (!slotElement.dataset.viewed) {
+          const observer = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                  if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+                      this.recordEvent(selectedCampaign.id, selectedPromo.promotionId, 'view', { id: slotElement.id || `slot-${slotIndex}`, type: isVertical ? 'vertical' : 'native' });
+                      slotElement.dataset.viewed = "true";
+                      observer.unobserve(slotElement);
+                  }
+              });
+          }, { threshold: 0.5 });
+          observer.observe(slotElement);
+      }
+  
+      // 5. CLICK HANDLER
       const clickTarget = slotElement.querySelector('.adnet-clickable');
       if (clickTarget) {
         clickTarget.onclick = async (e) => {
           e.preventDefault();
-          await this.handleAdClick(campaign.id, promotion.promotionId, landingUrl, placement);
+          const url = selectedPromo.landingUrl || selectedCampaign.landingUrl;
+          await this.handleAdClick(selectedCampaign.id, selectedPromo.promotionId, url);
         };
       }
     }
 
     buildDynamicHtml(campaign, promotion, context) {
-      const { isVertical, isWide } = context;
-      const ipfsGateway = 'https://ipfs.io/ipfs/';
-      // Use creative URL directly if it's already a full URL, otherwise prepend IPFS gateway
-      const creativeUrl = promotion.creative.startsWith('http://') || promotion.creative.startsWith('https://')
-        ? promotion.creative
-        : `${ipfsGateway}${promotion.creative}`;
+      const { isVertical, isWide, siteStyles } = context;
+      const creativeUrl = promotion.creative.startsWith('http') ? promotion.creative : `https://ipfs.io/ipfs/${promotion.creative}`;
 
-      const wrapperStyle = "width: 100%; text-decoration: none; color: inherit; display: block; border: 1px solid #ddd; background: #fff;";
-
-      const renderText = (text, style) => {
-        if (!text || text.trim() === "") return "";
-        return `<div style="${style}">${text}</div>`;
-      };
-
-      if (isVertical) {
-        // Skyscraper / Side Rail layout (Tall)
-        return `
-          <a href="#" class="adnet-clickable" style="${wrapperStyle}">
-            <div style="width: 100%; aspect-ratio: 160 / 300; overflow: hidden; background: #000;">
-              <img src="${creativeUrl}" style="width: 100%; height: 100%; object-fit: cover;">
-            </div>
-            <div style="padding: 12px;">
-              ${renderText(promotion.title, "font-size: 14px; font-weight: bold; margin-bottom: 5px;")}
-              <div style="font-size: 10px; color: #999;">Sponsored</div>
-            </div>
-          </a>`;
-      }
-
-      if (isWide) {
-        // Horizontal Article Banner layout
-        return `
-          <a href="#" class="adnet-clickable" style="${wrapperStyle} display: flex; align-items: center; padding: 10px;">
-            <img src="${creativeUrl}" style="height: 60px; width: auto; max-width: 40%; object-fit: contain; margin-right: 15px;">
-            <div style="flex: 1;">
-              ${renderText(promotion.title, "font-size: 16px; font-weight: bold;")}
-              ${renderText(promotion.subtitle, "font-size: 13px; color: #666;")}
-              <div style="font-size: 10px; color: #999;">Sponsored</div>
-            </div>
-          </a>`;
-      }
-
-      // Default / Rectangle layout
+      const wrapperStyle = `width:100%; text-decoration:none; display:block; background:transparent; font-family:${siteStyles.fontFamily}; color:${siteStyles.titleColor};`;
+      const titleStyle = `font-weight:bold; line-height:${siteStyles.lineHeight}; font-size:${siteStyles.fontSize}; margin-top:10px; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;`;
+      const subtitleStyle = `opacity:0.7; font-size:0.9em; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;`;
+      const sponsorStyle = `font-size:0.7em; opacity:0.5; margin-top:8px; text-transform:uppercase;`;
       return `
         <a href="#" class="adnet-clickable" style="${wrapperStyle}">
-          <div style="width: 100%; aspect-ratio: 16 / 9; overflow: hidden;">
-            <img src="${creativeUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+          <div style="width:100%; aspect-ratio:16/9; overflow:hidden;">
+            <img src="${creativeUrl}" style="width:100%; height:100%; object-fit:cover;">
           </div>
-          <div style="padding: 15px;">
-            ${renderText(promotion.title, "font-size: 15px; font-weight: bold;")}
-            <div style="font-size: 11px; color: #999;">Sponsored by ${campaign.brand || 'Partner'}</div>
+          <div style="padding:0;">
+              <div style="${titleStyle}">${promotion.title}</div>
+              ${promotion.subtitle ? `<div style="${subtitleStyle}">${promotion.subtitle}</div>` : ''}
+              <div style="${sponsorStyle}">Sponsored by ${campaign.brand}</div>
           </div>
         </a>`;
     }
