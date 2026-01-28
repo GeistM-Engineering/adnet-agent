@@ -231,23 +231,44 @@
     buildDynamicHtml(campaign, promotion, context) {
       const { isVertical, isWide, siteStyles } = context;
       const creativeUrl = promotion.creative.startsWith('http') ? promotion.creative : `https://ipfs.io/ipfs/${promotion.creative}`;
-
+  
+      // 1. DYNAMIC ADJUSTMENTS
+      // If we are in a sidebar (isVertical), we override the giant site font size.
+      const displayFontSize = isVertical ? '16px' : siteStyles.fontSize;
+      const displayLineHeight = isVertical ? '1.2' : siteStyles.lineHeight;
+      const imageRatio = isVertical ? '1/1' : '16/9';
+  
+      // 2. STYLES
       const wrapperStyle = `width:100%; text-decoration:none; display:block; background:transparent; font-family:${siteStyles.fontFamily}; color:${siteStyles.titleColor};`;
-      const titleStyle = `font-weight:bold; line-height:${siteStyles.lineHeight}; font-size:${siteStyles.fontSize}; margin-top:10px; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;`;
+      
+      const titleStyle = `
+          font-weight:bold; 
+          line-height:${displayLineHeight}; 
+          font-size:${displayFontSize}; 
+          margin-top:10px; 
+          margin-bottom:4px; 
+          display:-webkit-box; 
+          -webkit-line-clamp:2; 
+          -webkit-box-orient:vertical; 
+          overflow:hidden;
+      `;
+  
       const subtitleStyle = `opacity:0.7; font-size:0.9em; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;`;
       const sponsorStyle = `font-size:0.7em; opacity:0.5; margin-top:8px; text-transform:uppercase;`;
+  
+      // 3. UNIVERSAL RETURN
       return `
         <a href="#" class="adnet-clickable" style="${wrapperStyle}">
-          <div style="width:100%; aspect-ratio:16/9; overflow:hidden;">
+          <div style="width:100%; aspect-ratio:${imageRatio}; overflow:hidden;">
             <img src="${creativeUrl}" style="width:100%; height:100%; object-fit:cover;">
           </div>
           <div style="padding:0;">
               <div style="${titleStyle}">${promotion.title}</div>
-              ${promotion.subtitle ? `<div style="${subtitleStyle}">${promotion.subtitle}</div>` : ''}
+              ${(!isVertical && promotion.subtitle) ? `<div style="${subtitleStyle}">${promotion.subtitle}</div>` : ''}
               <div style="${sponsorStyle}">Sponsored by ${campaign.brand}</div>
           </div>
         </a>`;
-    }
+  }
 
     async recordEvent(campaignId, promotionId, type, placement = null) {
       try {
